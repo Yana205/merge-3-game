@@ -6,7 +6,7 @@ public class Loader : MonoBehaviour
 
     void Awake()
     {
-        ISaveSystem saveSystem = new JsonSaveSystem();
+        ISaveSystem saveSystem = new PlayerPrefsSaveSystem();
         scoreController.Setup(saveSystem);
     }
 }
