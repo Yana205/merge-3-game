@@ -16,6 +16,11 @@ public class LevelManager : MonoBehaviour
 
     void Start()
     {
+        if (levels == null || levels.Length == 0)
+        {
+            Debug.LogError("LevelManager: No levels assigned.");
+            return;
+        }
         int levelIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
         if (levelIndex >= 0 && levelIndex < levels.Length)
             LoadLevel(levels[levelIndex]);
@@ -24,17 +29,31 @@ public class LevelManager : MonoBehaviour
     // FUTURE: add loading screen, level transition animation
     public void LoadLevel(LevelData data)
     {
+        if (data == null)
+        {
+            Debug.LogError("LevelManager: LevelData is null — cannot load level.");
+            return;
+        }
+        if (gridManager == null)
+        {
+            Debug.LogError("LevelManager: GridManager reference is missing.");
+            return;
+        }
+
         currentLevel = data;
         _localScore = 0;
         scoreController?.ResetScore();
 
-        // Build the grid from level data
         gridManager.CreateGrid(data.rows, data.cols);
 
-        // Fill every cell with a Tier 1 (Obsidian) at the start
         for (int r = 0; r < data.rows; r++)
             for (int c = 0; c < data.cols; c++)
-                gridManager.SpawnItem(gridManager.GetCell(r, c));
+            {
+                if (Random.value < data.emptyChance)
+                    continue;
+                int tier = data.PickRandomTier();
+                gridManager.SpawnItem(gridManager.GetCell(r, c), tier);
+            }
 
         // Reset UI
         if (uiManager != null)

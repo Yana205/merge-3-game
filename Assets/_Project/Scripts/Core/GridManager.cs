@@ -68,15 +68,14 @@ public class GridManager : MonoBehaviour
         return grid[row, col];
     }
 
-    // FUTURE: add SpawnItem overload with tier parameter
-    public Item SpawnItem(Cell cell)
+    public Item SpawnItem(Cell cell, int tier = 1)
     {
         if (cell == null || cell.IsOccupied())
             return null;
 
         GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
         Item item = go.GetComponent<Item>();
-        item.Setup(1); // Always spawn Tier 1
+        item.Setup(tier);
         cell.PlaceItem(item);
         return item;
     }
