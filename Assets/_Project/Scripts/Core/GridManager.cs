@@ -17,6 +17,12 @@ public class GridManager : MonoBehaviour
 
     public void CreateGrid(int newRows, int newCols)
     {
+        if (cellPrefab == null)
+        {
+            Debug.LogError("GridManager: cellPrefab is not assigned.");
+            return;
+        }
+
         rows = newRows;
         cols = newCols;
 
@@ -24,7 +30,6 @@ public class GridManager : MonoBehaviour
 
         grid = new Cell[rows, cols];
 
-        // Offset so the grid is centered on screen
         float gridW = (cols - 1) * cellSize;
         float gridH = (rows - 1) * cellSize;
         Vector3 origin = new Vector3(-gridW / 2f, -gridH / 2f, 0);
@@ -72,6 +77,11 @@ public class GridManager : MonoBehaviour
     {
         if (cell == null || cell.IsOccupied())
             return null;
+        if (itemPrefab == null)
+        {
+            Debug.LogError("GridManager: itemPrefab is not assigned.");
+            return null;
+        }
 
         GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
         Item item = go.GetComponent<Item>();

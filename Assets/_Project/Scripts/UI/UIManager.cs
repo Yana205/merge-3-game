@@ -1,6 +1,5 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
@@ -8,7 +7,6 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI targetText;
     public GameObject levelCompletePanel;
-    public Button nextLevelButton;
 
     void Start()
     {
