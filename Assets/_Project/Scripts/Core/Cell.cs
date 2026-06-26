@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[ExecuteInEditMode]
 public class Cell : MonoBehaviour
 {
     [Header("Grid Position (set by GridManager)")]
