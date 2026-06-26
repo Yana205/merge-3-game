@@ -39,7 +39,7 @@ public class GridManager : MonoBehaviour
             for (int c = 0; c < cols; c++)
             {
                 Vector3 pos = origin + new Vector3(c * cellSize, r * cellSize, 0);
-                GameObject go = Instantiate(cellPrefab, pos, Quaternion.identity);
+                GameObject go = Instantiate(cellPrefab, pos, Quaternion.identity, transform);
                 Cell cell = go.GetComponent<Cell>();
                 cell.row = r;
                 cell.col = c;
@@ -48,22 +48,33 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    void ClearGrid()
+    public void ClearGrid()
     {
-        // Destroy all existing items (they are separate GameObjects)
-        Item[] items = FindObjectsOfType<Item>();
+        Item[] items = FindObjectsByType<Item>(FindObjectsSortMode.None);
         foreach (Item item in items)
-            Destroy(item.gameObject);
+            SafeDestroy(item.gameObject);
 
-        // Destroy all existing cells
         if (grid != null)
         {
             foreach (Cell cell in grid)
             {
                 if (cell != null)
-                    Destroy(cell.gameObject);
+                    SafeDestroy(cell.gameObject);
             }
         }
+
+        for (int i = transform.childCount - 1; i >= 0; i--)
+            SafeDestroy(transform.GetChild(i).gameObject);
+
+        grid = null;
+    }
+
+    static void SafeDestroy(Object obj)
+    {
+        if (Application.isPlaying)
+            Destroy(obj);
+        else
+            DestroyImmediate(obj);
     }
 
     public Cell GetCell(int row, int col)
