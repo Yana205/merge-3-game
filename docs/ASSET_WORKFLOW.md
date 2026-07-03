@@ -1,5 +1,9 @@
 # Gem Art Asset Workflow
 
+> Related plans: [docs/plans/](plans/) — background (`/game-background`),
+> buttons (`/ui-buttons`), menu (`/ui-menu`). This file documents the shared
+> pipeline patterns they build on.
+
 How to get or create gem sprites for the merge-3 game and wire them into the
 game's data. The game code is already art-ready: `GemConfig` (ScriptableObject)
 holds 20 `GemTierData` entries (name, tint color, sprite, score); when a
