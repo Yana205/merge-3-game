@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -117,5 +118,64 @@ public class GridManager : MonoBehaviour
         return a != b
             && Mathf.Abs(a.row - b.row) <= 1
             && Mathf.Abs(a.col - b.col) <= 1;
+    }
+
+    public Cell GetRandomEmptyCell()
+    {
+        if (grid == null) return null;
+
+        var emptyCells = new List<Cell>();
+        foreach (Cell cell in grid)
+        {
+            if (cell != null && !cell.IsOccupied())
+                emptyCells.Add(cell);
+        }
+
+        if (emptyCells.Count == 0) return null;
+        return emptyCells[Random.Range(0, emptyCells.Count)];
+    }
+
+    public bool HasAnyValidMerge()
+    {
+        if (grid == null) return false;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Cell cell = grid[r, c];
+                if (cell == null || !cell.IsOccupied()) continue;
+
+                int tier = cell.CurrentItem.Tier;
+                if (tier >= Item.MaxTier) continue;
+
+                for (int dr = -1; dr <= 1; dr++)
+                {
+                    for (int dc = -1; dc <= 1; dc++)
+                    {
+                        if (dr == 0 && dc == 0) continue;
+                        Cell neighbour = GetCell(r + dr, c + dc);
+                        if (neighbour != null && neighbour.IsOccupied()
+                            && neighbour.CurrentItem.Tier == tier)
+                            return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsFull()
+    {
+        if (grid == null) return true;
+
+        foreach (Cell cell in grid)
+        {
+            if (cell != null && !cell.IsOccupied())
+                return false;
+        }
+
+        return true;
     }
 }

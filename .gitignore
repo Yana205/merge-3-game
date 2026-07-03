@@ -108,3 +108,8 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Unity-MCP editor bridge — local dev tooling (AI <-> Unity Editor), not part of the game.
+# If you later add real game plugins under Assets/Plugins, un-ignore them explicitly.
+/[Aa]ssets/Plugins/
+/[Aa]ssets/Plugins.meta
