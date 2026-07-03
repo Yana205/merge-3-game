@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public class InputHandler : MonoBehaviour
 {
@@ -6,24 +7,29 @@ public class InputHandler : MonoBehaviour
     public GridManager gridManager;
     public MergeManager mergeManager;
 
-    private Item draggedItem;
-    private Cell sourceCell;
-    private Vector2 dragOffset;
-    private bool isDragging;
+    public event Action OnGameOver;
 
-    // Highlight colors shown during a drag
-    private static readonly Color HighlightMerge = new Color(0.15f, 0.60f, 0.15f); // green — same-tier neighbour
-    private static readonly Color HighlightMove  = new Color(0.30f, 0.30f, 0.50f); // blue-gray — empty neighbour
+    private Item _draggedItem;
+    private Cell _sourceCell;
+    private Vector2 _dragOffset;
+    private bool _isDragging;
+    private bool _gameOver;
+    private bool _inputEnabled = true;
+
+    private static readonly Color HighlightMerge = new Color(0.15f, 0.60f, 0.15f);
+    private static readonly Color HighlightMove  = new Color(0.30f, 0.30f, 0.50f);
 
     void Update()
     {
+        if (_gameOver || !_inputEnabled) return;
+
         if (Input.GetMouseButtonDown(0))
             HandlePointerDown();
 
-        if (isDragging)
+        if (_isDragging)
             HandleDrag();
 
-        if (Input.GetMouseButtonUp(0) && isDragging)
+        if (Input.GetMouseButtonUp(0) && _isDragging)
             HandlePointerUp();
     }
 
@@ -32,50 +38,40 @@ public class InputHandler : MonoBehaviour
         Vector2 worldPos = GetMouseWorldPos();
         Collider2D[] hits = Physics2D.OverlapPointAll(worldPos);
 
-        Item hitItem = null;
-        Cell hitCell = null;
-
         foreach (Collider2D col in hits)
         {
             if (col == null) continue;
             Item item = col.GetComponent<Item>();
-            if (item != null) hitItem = item;
-            Cell cell = col.GetComponent<Cell>();
-            if (cell != null) hitCell = cell;
+            if (item != null)
+            {
+                StartDrag(item, worldPos);
+                return;
+            }
         }
-
-        if (hitItem != null)
-        {
-            StartDrag(hitItem, worldPos);
-            return;
-        }
-
-        if (hitCell != null && !hitCell.IsOccupied())
-            gridManager.SpawnItem(hitCell);
     }
 
     void StartDrag(Item item, Vector2 worldPos)
     {
-        draggedItem = item;
-        isDragging = true;
-        dragOffset = (Vector2)item.transform.position - worldPos;
-        sourceCell = gridManager.FindCellWithItem(item);
-        HighlightAdjacentCells(sourceCell, item.Tier);
+        _draggedItem = item;
+        _isDragging = true;
+        _dragOffset = (Vector2)item.transform.position - worldPos;
+        _sourceCell = gridManager.FindCellWithItem(item);
+        HighlightAdjacentCells(_sourceCell, item.Tier);
     }
 
     void HandleDrag()
     {
-        if (draggedItem == null) return;
-        draggedItem.transform.position = GetMouseWorldPos() + dragOffset;
+        if (_draggedItem == null) return;
+        _draggedItem.transform.position = GetMouseWorldPos() + _dragOffset;
     }
 
     void HandlePointerUp()
     {
         ClearAllHighlights();
 
-        if (draggedItem == null)
+        if (_draggedItem == null)
         {
-            isDragging = false;
+            _isDragging = false;
             return;
         }
 
@@ -89,44 +85,75 @@ public class InputHandler : MonoBehaviour
         {
             if (col == null) continue;
             Item item = col.GetComponent<Item>();
-            if (item != null && item != draggedItem) targetItem = item;
+            if (item != null && item != _draggedItem) targetItem = item;
             Cell cell = col.GetComponent<Cell>();
             if (cell != null) targetCell = cell;
         }
 
-        // If we found an item but no cell, look up the cell via grid
         if (targetCell == null && targetItem != null)
             targetCell = gridManager.FindCellWithItem(targetItem);
 
         bool success = false;
 
-        if (sourceCell != null && targetCell != null && gridManager.AreAdjacent(sourceCell, targetCell))
+        if (_sourceCell != null && targetCell != null && gridManager.AreAdjacent(_sourceCell, targetCell))
         {
             if (targetItem != null)
             {
-                // Try merge — MergeManager handles same-tier check internally
-                success = mergeManager.TryMerge(draggedItem, targetItem);
+                success = mergeManager.TryMerge(_draggedItem, targetItem);
             }
             else if (!targetCell.IsOccupied())
             {
-                // Move to empty adjacent cell
-                sourceCell.RemoveItem();
-                targetCell.PlaceItem(draggedItem);
-                draggedItem.transform.position = targetCell.transform.position;
+                _sourceCell.RemoveItem();
+                targetCell.PlaceItem(_draggedItem);
+                _draggedItem.transform.position = targetCell.transform.position;
                 success = true;
             }
         }
 
         if (!success)
         {
-            // Snap back to origin
-            if (sourceCell != null)
-                draggedItem.transform.position = sourceCell.transform.position;
+            if (_sourceCell != null)
+                _draggedItem.transform.position = _sourceCell.transform.position;
+        }
+        // If the merge completed the level, input is locked mid-call — skip the
+        // post-move spawn / game-over check so a won board stays frozen and clean.
+        else if (_inputEnabled)
+        {
+            SpawnAndCheckGameOver();
         }
 
-        draggedItem = null;
-        sourceCell = null;
-        isDragging = false;
+        _draggedItem = null;
+        _sourceCell = null;
+        _isDragging = false;
+    }
+
+    void SpawnAndCheckGameOver()
+    {
+        Cell emptyCell = gridManager.GetRandomEmptyCell();
+        if (emptyCell != null)
+            gridManager.SpawnItem(emptyCell);
+
+        if (gridManager.IsFull() && !gridManager.HasAnyValidMerge())
+        {
+            _gameOver = true;
+            OnGameOver?.Invoke();
+        }
+    }
+
+    public void ResetState()
+    {
+        _gameOver = false;
+        _inputEnabled = true;
+        _draggedItem = null;
+        _sourceCell = null;
+        _isDragging = false;
+    }
+
+    // Called by LevelManager to freeze/unfreeze board interaction
+    // (e.g. lock the board once the level is complete).
+    public void SetInputEnabled(bool enabled)
+    {
+        _inputEnabled = enabled;
     }
 
     void HighlightAdjacentCells(Cell source, int tier)

@@ -7,6 +7,7 @@ public class LevelManager : MonoBehaviour
     public GridManager gridManager;
     public UIManager uiManager;
     public ScoreController scoreController;
+    public InputHandler inputHandler;
     public LevelData[] levels;
 
     [Header("Runtime State")]
@@ -16,6 +17,9 @@ public class LevelManager : MonoBehaviour
 
     void Start()
     {
+        if (inputHandler != null)
+            inputHandler.OnGameOver += HandleGameOver;
+
         if (levels == null || levels.Length == 0)
         {
             Debug.LogError("LevelManager: No levels assigned.");
@@ -24,6 +28,18 @@ public class LevelManager : MonoBehaviour
         int levelIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
         if (levelIndex >= 0 && levelIndex < levels.Length)
             LoadLevel(levels[levelIndex]);
+    }
+
+    void OnDestroy()
+    {
+        if (inputHandler != null)
+            inputHandler.OnGameOver -= HandleGameOver;
+    }
+
+    void HandleGameOver()
+    {
+        if (uiManager != null)
+            uiManager.ShowGameOver();
     }
 
     // FUTURE: add loading screen, level transition animation
@@ -55,11 +71,14 @@ public class LevelManager : MonoBehaviour
                 gridManager.SpawnItem(gridManager.GetCell(r, c), tier);
             }
 
-        // Reset UI
+        if (inputHandler != null)
+            inputHandler.ResetState();
+
         if (uiManager != null)
         {
             uiManager.UpdateScore(CurrentScore, data.targetScore);
             uiManager.HideLevelComplete();
+            uiManager.HideGameOver();
         }
     }
 
@@ -71,11 +90,15 @@ public class LevelManager : MonoBehaviour
             _localScore += points;
 
         if (uiManager != null)
-        {
             uiManager.UpdateScore(CurrentScore, currentLevel.targetScore);
 
-            if (CurrentScore >= currentLevel.targetScore)
+        if (CurrentScore >= currentLevel.targetScore)
+        {
+            // Level complete — freeze the board so no more cells can be moved/merged.
+            if (uiManager != null)
                 uiManager.ShowLevelComplete();
+            if (inputHandler != null)
+                inputHandler.SetInputEnabled(false);
         }
     }
 

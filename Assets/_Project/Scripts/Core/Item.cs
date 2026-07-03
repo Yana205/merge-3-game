@@ -11,7 +11,7 @@ public class Item : MonoBehaviour
     [SerializeField] private GemConfig gemConfig;
 
     private static GemConfig _sharedConfig;
-    public static int MaxTier => _sharedConfig != null ? _sharedConfig.MaxTier : 9;
+    public static int MaxTier => _sharedConfig != null ? _sharedConfig.MaxTier : GemTierTable.Count;
 
     static Sprite _whiteSquare;
 
@@ -63,10 +63,15 @@ public class Item : MonoBehaviour
         }
         else
         {
+            // No GemConfig assigned — fall back to the built-in tier ladder so the
+            // merge progression is readable (distinct color per level + number).
             spriteRenderer.sprite = GetWhiteSquare();
-            spriteRenderer.color = Color.white;
+            spriteRenderer.color = GemTierTable.ColorFor(tier);
             if (tierLabel != null)
+            {
                 tierLabel.text = tier.ToString();
+                tierLabel.color = GemTierTable.LabelColorFor(tier);
+            }
         }
     }
 

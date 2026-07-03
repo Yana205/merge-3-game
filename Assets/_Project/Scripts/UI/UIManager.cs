@@ -7,11 +7,14 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI targetText;
     public GameObject levelCompletePanel;
+    public GameObject gameOverPanel;
 
     void Start()
     {
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
     }
 
     // FUTURE: add animated score counter
@@ -35,5 +38,17 @@ public class UIManager : MonoBehaviour
     {
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
+    }
+
+    public void ShowGameOver()
+    {
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+    }
+
+    public void HideGameOver()
+    {
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
     }
 }
