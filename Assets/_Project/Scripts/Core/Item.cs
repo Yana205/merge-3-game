@@ -58,8 +58,12 @@ public class Item : MonoBehaviour
                 spriteRenderer.color = GemData.tintColor;
             }
 
+            // Full gem names overflow the cell; the number keeps tiers readable.
             if (tierLabel != null)
-                tierLabel.text = GemData.gemName;
+            {
+                tierLabel.text = tier.ToString();
+                tierLabel.color = GemTierTable.LabelColorFor(tier);
+            }
         }
         else
         {
