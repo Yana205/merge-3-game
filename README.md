@@ -2,7 +2,8 @@
 
 A merge-3 puzzle game built with Unity 6, Unity MCP and claude code. Made assets directly to the game using claude. Full skills structure and automatic workflow of asset and mechanic agents.
 
-![Demo](https://github.com/user-attachments/assets/fa9937be-7689-4fe6-af9a-24d8004451f9)
+<img width="800" height="395" alt="realdemo-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/1fa86576-5cb1-4d21-b238-472385f34f80" />
+
 
 ## Development Workflow
 
