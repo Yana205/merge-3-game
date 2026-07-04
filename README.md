@@ -1,6 +1,6 @@
 # Merge-3 Game
 
-A merge-3 puzzle game built with Unity 6.
+A merge-3 puzzle game built with Unity 6, Unity MCP and claude code.
 
 ## Development Workflow
 
