@@ -1,6 +1,12 @@
 using UnityEngine;
 using System;
 
+// CACHE AUDIT (Lesson 3.1)
+// - GetMouseWorldPos(): resolved Camera.main on every call — and it runs every
+//   Update frame while dragging. The camera is now cached in _camera (assigned
+//   once in Awake, with an error log if missing); the null guard is kept.
+// - HandlePointerDown()/HandlePointerUp(): per-collider col.GetComponent<Item>()
+//   and col.GetComponent<Cell>() calls replaced with col.TryGetComponent(out ...).
 public class InputHandler : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
@@ -15,9 +21,17 @@ public class InputHandler : MonoBehaviour
     private bool _isDragging;
     private bool _gameOver;
     private bool _inputEnabled = true;
+    private Camera _camera;
 
     private static readonly Color HighlightMerge = new Color(0.15f, 0.60f, 0.15f);
     private static readonly Color HighlightMove  = new Color(0.30f, 0.30f, 0.50f);
+
+    void Awake()
+    {
+        _camera = Camera.main;
+        if (_camera == null)
+            Debug.LogError("InputHandler: no camera tagged 'MainCamera' found in the scene.");
+    }
 
     void Update()
     {
@@ -41,8 +55,7 @@ public class InputHandler : MonoBehaviour
         foreach (Collider2D col in hits)
         {
             if (col == null) continue;
-            Item item = col.GetComponent<Item>();
-            if (item != null)
+            if (col.TryGetComponent(out Item item))
             {
                 StartDrag(item, worldPos);
                 return;
@@ -84,10 +97,8 @@ public class InputHandler : MonoBehaviour
         foreach (Collider2D col in hits)
         {
             if (col == null) continue;
-            Item item = col.GetComponent<Item>();
-            if (item != null && item != _draggedItem) targetItem = item;
-            Cell cell = col.GetComponent<Cell>();
-            if (cell != null) targetCell = cell;
+            if (col.TryGetComponent(out Item item) && item != _draggedItem) targetItem = item;
+            if (col.TryGetComponent(out Cell cell)) targetCell = cell;
         }
 
         if (targetCell == null && targetItem != null)
@@ -187,9 +198,8 @@ public class InputHandler : MonoBehaviour
 
     Vector2 GetMouseWorldPos()
     {
-        Camera cam = Camera.main;
-        if (cam == null) return Vector2.zero;
-        Vector3 pos = cam.ScreenToWorldPoint(Input.mousePosition);
+        if (_camera == null) return Vector2.zero;
+        Vector3 pos = _camera.ScreenToWorldPoint(Input.mousePosition);
         return new Vector2(pos.x, pos.y);
     }
 }

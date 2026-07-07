@@ -1,5 +1,10 @@
 using UnityEngine;
 
+// CACHE AUDIT (Lesson 3.1)
+// - TryMerge(): replaced direct Destroy(itemA.gameObject)/Destroy(itemB.gameObject)
+//   and Instantiate(gridManager.itemPrefab, ...) with gridManager.DespawnItem(...)
+//   and gridManager.SpawnItem(cellB, newTier), so all Item lifetime is
+//   centralized in GridManager (later phases build pooling on top of it).
 public class MergeManager : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
@@ -24,17 +29,20 @@ public class MergeManager : MonoBehaviour
 
         int newTier = itemA.Tier + 1;
 
-        // Remove from cells and destroy old items
+        // Remove from cells and despawn old items through GridManager
         cellA.RemoveItem();
         cellB.RemoveItem();
-        Destroy(itemA.gameObject);
-        Destroy(itemB.gameObject);
+        gridManager.DespawnItem(itemA);
+        gridManager.DespawnItem(itemB);
 
         // Spawn merged item at the drop destination
-        GameObject newGO = Instantiate(gridManager.itemPrefab, cellB.transform.position, Quaternion.identity);
-        Item newItem = newGO.GetComponent<Item>();
-        newItem.Setup(newTier);
-        cellB.PlaceItem(newItem);
+        // (cellB is free here because RemoveItem already ran)
+        Item newItem = gridManager.SpawnItem(cellB, newTier);
+        if (newItem == null)
+        {
+            Debug.LogError("MergeManager: SpawnItem returned null during merge.");
+            return false;
+        }
 
         if (levelManager != null)
         {

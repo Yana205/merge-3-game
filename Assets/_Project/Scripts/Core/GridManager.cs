@@ -1,6 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// CACHE AUDIT (Lesson 3.1)
+// - ClearGrid(): replaced the whole-scene FindObjectsByType<Item> scan with the
+//   owned _liveItems list while playing. The scan is kept ONLY as the edit-mode
+//   fallback — editor tooling calls ClearGrid outside play mode, where the
+//   non-serialized list can be stale.
+// - SpawnItem() now registers every spawned Item in _liveItems, and the new
+//   DespawnItem() unregisters + destroys via SafeDestroy, so all Item lifetime
+//   is centralized in GridManager.
+// - Also audited: the project was searched for "new WaitForSeconds" in loops
+//   and none exist.
 public class GridManager : MonoBehaviour
 {
     [Header("Grid Settings")]
@@ -13,6 +23,9 @@ public class GridManager : MonoBehaviour
     public GameObject itemPrefab;
 
     private Cell[,] grid;
+
+    // Every Item spawned by this manager, so ClearGrid doesn't need a scene scan.
+    private readonly List<Item> _liveItems = new List<Item>();
 
     // FUTURE: add grid border highlight, cell padding
 
@@ -51,9 +64,23 @@ public class GridManager : MonoBehaviour
 
     public void ClearGrid()
     {
-        Item[] items = FindObjectsByType<Item>(FindObjectsSortMode.None);
-        foreach (Item item in items)
-            SafeDestroy(item.gameObject);
+        if (Application.isPlaying)
+        {
+            // Despawn a copy: DespawnItem mutates _liveItems while we iterate.
+            Item[] items = _liveItems.ToArray();
+            foreach (Item item in items)
+                DespawnItem(item);
+            _liveItems.Clear();
+        }
+        else
+        {
+            // Edit-mode fallback: editor tooling calls ClearGrid outside play
+            // mode, where the non-serialized _liveItems list can be stale.
+            Item[] items = FindObjectsByType<Item>(FindObjectsSortMode.None);
+            foreach (Item item in items)
+                SafeDestroy(item.gameObject);
+            _liveItems.Clear();
+        }
 
         if (grid != null)
         {
@@ -99,7 +126,17 @@ public class GridManager : MonoBehaviour
         Item item = go.GetComponent<Item>();
         item.Setup(tier);
         cell.PlaceItem(item);
+        _liveItems.Add(item);
         return item;
+    }
+
+    // Central despawn point: every Item created by SpawnItem should die here so
+    // _liveItems stays accurate (and later phases can swap in pooling).
+    public void DespawnItem(Item item)
+    {
+        if (item == null) return;
+        _liveItems.Remove(item);
+        SafeDestroy(item.gameObject);
     }
 
     public Cell FindCellWithItem(Item item)
