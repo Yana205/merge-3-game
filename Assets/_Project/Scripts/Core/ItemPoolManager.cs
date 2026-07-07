@@ -41,8 +41,8 @@ public class ItemPoolManager : MonoBehaviour
 
     /// <summary>
     /// Takes an Item from the pool and places it at <paramref name="position"/>.
-    /// Returns null if the pool could not be created or is exhausted of live
-    /// instances.
+    /// The pool grows on demand, so this only returns null if the pool could
+    /// not be created (missing prefab or prefab without an Item component).
     /// </summary>
     public Item Get(Vector3 position)
     {

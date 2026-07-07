@@ -82,7 +82,7 @@ public class GridManager : MonoBehaviour
         {
             // Edit-mode fallback: editor tooling calls ClearGrid outside play
             // mode, where the non-serialized _liveItems list can be stale.
-            Item[] items = FindObjectsByType<Item>(FindObjectsSortMode.None);
+            Item[] items = FindObjectsByType<Item>();
             foreach (Item item in items)
                 SafeDestroy(item.gameObject);
             _liveItems.Clear();
