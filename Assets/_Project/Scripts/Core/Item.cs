@@ -79,6 +79,25 @@ public class Item : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Clears per-life state before the item goes back into the pool, so a
+    /// recycled instance never leaks the previous gem's tier, data, or visuals.
+    /// </summary>
+    public void ResetForPool()
+    {
+        Tier = 0;
+        GemData = null;
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.sprite = null;
+            spriteRenderer.color = Color.white;
+        }
+
+        if (tierLabel != null)
+            tierLabel.text = "";
+    }
+
     static Sprite GetWhiteSquare()
     {
         if (_whiteSquare == null)

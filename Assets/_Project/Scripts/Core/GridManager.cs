@@ -22,10 +22,16 @@ public class GridManager : MonoBehaviour
     public GameObject cellPrefab;
     public GameObject itemPrefab;
 
+    [Header("Pooling")]
+    [SerializeField] private ItemPoolManager itemPoolManager;
+
     private Cell[,] grid;
 
     // Every Item spawned by this manager, so ClearGrid doesn't need a scene scan.
     private readonly List<Item> _liveItems = new List<Item>();
+
+    // Log the "pool not wired" error only once, not on every spawn.
+    private bool _warnedPoolUnwired;
 
     // FUTURE: add grid border highlight, cell padding
 
@@ -116,14 +122,35 @@ public class GridManager : MonoBehaviour
     {
         if (cell == null || cell.IsOccupied())
             return null;
-        if (itemPrefab == null)
+
+        Item item;
+        if (itemPoolManager != null)
         {
-            Debug.LogError("GridManager: itemPrefab is not assigned.");
-            return null;
+            item = itemPoolManager.Get(cell.transform.position);
+        }
+        else
+        {
+            // Fallback: keep the game running when the pool manager is not
+            // wired in the scene, but say so once.
+            if (!_warnedPoolUnwired)
+            {
+                Debug.LogError("GridManager: itemPoolManager is not assigned — falling back to Instantiate/Destroy for Items.");
+                _warnedPoolUnwired = true;
+            }
+
+            if (itemPrefab == null)
+            {
+                Debug.LogError("GridManager: itemPrefab is not assigned.");
+                return null;
+            }
+
+            GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
+            item = go.GetComponent<Item>();
         }
 
-        GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
-        Item item = go.GetComponent<Item>();
+        if (item == null)
+            return null;
+
         item.Setup(tier);
         cell.PlaceItem(item);
         _liveItems.Add(item);
@@ -131,12 +158,17 @@ public class GridManager : MonoBehaviour
     }
 
     // Central despawn point: every Item created by SpawnItem should die here so
-    // _liveItems stays accurate (and later phases can swap in pooling).
+    // _liveItems stays accurate. In play mode items go back to the pool; the
+    // edit-mode path (and the unwired-pool fallback) still uses SafeDestroy.
     public void DespawnItem(Item item)
     {
         if (item == null) return;
         _liveItems.Remove(item);
-        SafeDestroy(item.gameObject);
+
+        if (Application.isPlaying && itemPoolManager != null)
+            itemPoolManager.Release(item);
+        else
+            SafeDestroy(item.gameObject);
     }
 
     public Cell FindCellWithItem(Item item)
