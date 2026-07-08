@@ -35,6 +35,22 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
-  }
+    "com.unity.modules.xr": "1.0.0",
+    "com.ivanmurzak.unity.mcp": "0.82.3",
+    "com.ivanmurzak.unity.mcp.animation": "1.2.23",
+    "com.ivanmurzak.unity.mcp.tilemap": "1.0.8",
+    "com.ivanmurzak.unity.mcp.navigation": "1.0.9",
+    "com.ivanmurzak.unity.mcp.particlesystem": "1.2.23",
+    "com.ivanmurzak.unity.mcp.inputsystem": "1.0.9"
+  },
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.ivanmurzak",
+        "extensions.unity"
+      ]
+    }
+  ]
 }
