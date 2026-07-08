@@ -13,6 +13,9 @@ public class LevelManager : MonoBehaviour
     public ScreenFader screenFader;
     public BackgroundFitter background;
 
+    [Header("Services (assign in Inspector)")]
+    [SerializeField] private ServiceLoader serviceLoader;
+
     // Fired after the last level is finished; MenuController shows the menu.
     public event System.Action OnAllLevelsComplete;
 
@@ -31,15 +34,44 @@ public class LevelManager : MonoBehaviour
             Debug.LogError("LevelManager: No levels assigned.");
             return;
         }
-        int levelIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
-        if (levelIndex >= 0 && levelIndex < levels.Length)
-            LoadLevel(levels[levelIndex]);
+
+        // Don't touch the board until ServiceLoader has loaded the GemItem
+        // Addressable and injected the ItemFactory into GridManager.
+        if (serviceLoader == null)
+        {
+            Debug.LogError("LevelManager: serviceLoader is not assigned — loading the level without waiting for services.");
+            LoadSelectedLevel();
+        }
+        else if (serviceLoader.IsReady)
+        {
+            LoadSelectedLevel();
+        }
+        else
+        {
+            serviceLoader.OnServicesReady += HandleServicesReady;
+        }
     }
 
     void OnDestroy()
     {
         if (inputHandler != null)
             inputHandler.OnGameOver -= HandleGameOver;
+
+        if (serviceLoader != null)
+            serviceLoader.OnServicesReady -= HandleServicesReady;
+    }
+
+    void HandleServicesReady()
+    {
+        serviceLoader.OnServicesReady -= HandleServicesReady;
+        LoadSelectedLevel();
+    }
+
+    void LoadSelectedLevel()
+    {
+        int levelIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
+        if (levelIndex >= 0 && levelIndex < levels.Length)
+            LoadLevel(levels[levelIndex]);
     }
 
     void HandleGameOver()

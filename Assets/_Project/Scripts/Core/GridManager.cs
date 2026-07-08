@@ -25,6 +25,10 @@ public class GridManager : MonoBehaviour
     [Header("Pooling")]
     [SerializeField] private ItemPoolManager itemPoolManager;
 
+    // Injected by ServiceLoader once the GemItem Addressable is loaded; the
+    // preferred spawn/despawn path. ItemPoolManager is only a legacy fallback.
+    private ItemFactory _itemFactory;
+
     private Cell[,] grid;
 
     // Every Item spawned by this manager, so ClearGrid doesn't need a scene scan.
@@ -32,6 +36,9 @@ public class GridManager : MonoBehaviour
 
     // Log the "pool not wired" error only once, not on every spawn.
     private bool _warnedPoolUnwired;
+
+    // Log the "factory not injected" error only once, not on every spawn.
+    private bool _warnedFactoryMissing;
 
     // FUTURE: add grid border highlight, cell padding
 
@@ -118,23 +125,41 @@ public class GridManager : MonoBehaviour
         return grid[row, col];
     }
 
+    // Called by ServiceLoader after the GemItem Addressable finished loading.
+    public void SetItemFactory(ItemFactory factory)
+    {
+        _itemFactory = factory;
+    }
+
     public Item SpawnItem(Cell cell, int tier = 1)
     {
         if (cell == null || cell.IsOccupied())
             return null;
 
         Item item;
-        if (itemPoolManager != null)
+        if (_itemFactory != null)
         {
+            item = _itemFactory.Get(cell.transform.position);
+        }
+        else if (itemPoolManager != null)
+        {
+            // Fallback: ServiceLoader has not injected the factory (services
+            // still loading, or the loader is missing from the scene).
+            if (!_warnedFactoryMissing)
+            {
+                Debug.LogError("GridManager: ItemFactory is not injected — falling back to ItemPoolManager.");
+                _warnedFactoryMissing = true;
+            }
+
             item = itemPoolManager.Get(cell.transform.position);
         }
         else
         {
-            // Fallback: keep the game running when the pool manager is not
-            // wired in the scene, but say so once.
+            // Last-resort fallback: keep the game running when neither the
+            // factory nor the pool manager is available, but say so once.
             if (!_warnedPoolUnwired)
             {
-                Debug.LogError("GridManager: itemPoolManager is not assigned — falling back to Instantiate/Destroy for Items.");
+                Debug.LogError("GridManager: no ItemFactory and no itemPoolManager — falling back to Instantiate/Destroy for Items.");
                 _warnedPoolUnwired = true;
             }
 
@@ -158,14 +183,17 @@ public class GridManager : MonoBehaviour
     }
 
     // Central despawn point: every Item created by SpawnItem should die here so
-    // _liveItems stays accurate. In play mode items go back to the pool; the
-    // edit-mode path (and the unwired-pool fallback) still uses SafeDestroy.
+    // _liveItems stays accurate. In play mode items go back through the factory
+    // (or the legacy pool manager); the edit-mode path (and the unwired
+    // fallback) still uses SafeDestroy.
     public void DespawnItem(Item item)
     {
         if (item == null) return;
         _liveItems.Remove(item);
 
-        if (Application.isPlaying && itemPoolManager != null)
+        if (Application.isPlaying && _itemFactory != null)
+            _itemFactory.Release(item);
+        else if (Application.isPlaying && itemPoolManager != null)
             itemPoolManager.Release(item);
         else
             SafeDestroy(item.gameObject);
