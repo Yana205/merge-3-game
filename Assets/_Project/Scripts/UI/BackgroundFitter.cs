@@ -10,8 +10,25 @@ public class BackgroundFitter : MonoBehaviour
     [Header("References")]
     [SerializeField] private Camera targetCamera;
 
+    private SpriteRenderer _spriteRenderer;
+
     void Awake()
     {
+        _spriteRenderer = GetComponent<SpriteRenderer>();
+        Fit();
+    }
+
+    /// <summary>Swap the background sprite (e.g. per level) and re-fit.</summary>
+    public void SetSprite(Sprite sprite)
+    {
+        if (sprite == null)
+            return;
+        if (_spriteRenderer == null)
+            _spriteRenderer = GetComponent<SpriteRenderer>();
+        if (_spriteRenderer == null)
+            return;
+
+        _spriteRenderer.sprite = sprite;
         Fit();
     }
 
@@ -26,7 +43,7 @@ public class BackgroundFitter : MonoBehaviour
             return;
         }
 
-        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        SpriteRenderer spriteRenderer = _spriteRenderer != null ? _spriteRenderer : GetComponent<SpriteRenderer>();
         if (spriteRenderer == null || spriteRenderer.sprite == null)
         {
             Debug.LogError("BackgroundFitter: missing SpriteRenderer or sprite.");

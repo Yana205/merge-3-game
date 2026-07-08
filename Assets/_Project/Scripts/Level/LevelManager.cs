@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class LevelManager : MonoBehaviour
 {
@@ -9,6 +8,13 @@ public class LevelManager : MonoBehaviour
     public ScoreController scoreController;
     public InputHandler inputHandler;
     public LevelData[] levels;
+
+    [Header("Transitions (assign in Inspector)")]
+    public ScreenFader screenFader;
+    public BackgroundFitter background;
+
+    // Fired after the last level is finished; MenuController shows the menu.
+    public event System.Action OnAllLevelsComplete;
 
     [Header("Runtime State")]
     public LevelData currentLevel;
@@ -60,6 +66,9 @@ public class LevelManager : MonoBehaviour
         _localScore = 0;
         scoreController?.ResetScore();
 
+        if (background != null && data.backgroundSprite != null)
+            background.SetSprite(data.backgroundSprite);
+
         gridManager.CreateGrid(data.rows, data.cols);
 
         for (int r = 0; r < data.rows; r++)
@@ -102,27 +111,56 @@ public class LevelManager : MonoBehaviour
         }
     }
 
+    // Loads a level in place (no scene reload) and announces it.
+    public void LoadLevelByIndex(int index)
+    {
+        if (levels == null || index < 0 || index >= levels.Length)
+        {
+            Debug.LogError("LevelManager: level index " + index + " is out of range.");
+            return;
+        }
+
+        PlayerPrefs.SetInt("SelectedLevel", index);
+        LoadLevel(levels[index]);
+
+        if (uiManager != null)
+            uiManager.ShowLevelBanner("Level " + (index + 1));
+    }
+
     // Called by "Next Level" button
     public void GoToNextLevel()
     {
-        int currentIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
-        int nextIndex = currentIndex + 1;
+        int nextIndex = PlayerPrefs.GetInt("SelectedLevel", 0) + 1;
 
         if (nextIndex < levels.Length)
         {
-            PlayerPrefs.SetInt("SelectedLevel", nextIndex);
+            RunWithFade(() => LoadLevelByIndex(nextIndex));
         }
         else
         {
-            // All levels complete — back to the main menu on reload.
+            // All levels complete — hand control back to the main menu.
             // FUTURE: show "All Levels Complete!" screen
             PlayerPrefs.SetInt("SelectedLevel", 0);
-            MenuController.ShowMenuOnNextLoad();
+            RunWithFade(ReturnToMenu);
         }
+    }
 
-        // Single-scene project: reloading the active scene restarts cleanly
-        // at whatever "SelectedLevel" now points to. Hardcoded scene names
-        // ("Game"/"MainMenu") broke this button — those scenes don't exist.
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    void ReturnToMenu()
+    {
+        if (uiManager != null)
+        {
+            uiManager.HideLevelComplete();
+            uiManager.HideGameOver();
+        }
+        OnAllLevelsComplete?.Invoke();
+    }
+
+    // Fades if a ScreenFader is wired; degrades to an instant switch if not.
+    void RunWithFade(System.Action midpoint)
+    {
+        if (screenFader != null)
+            screenFader.RunTransition(midpoint);
+        else
+            midpoint();
     }
 }

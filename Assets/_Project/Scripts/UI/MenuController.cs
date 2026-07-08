@@ -14,6 +14,8 @@ public class MenuController : MonoBehaviour
     [Header("References (assign in Inspector)")]
     [SerializeField] private LevelSelectUI _levelSelect;
     [SerializeField] private UIManager _uiManager;
+    [SerializeField] private LevelManager _levelManager;
+    [SerializeField] private ScreenFader _fader;
 
     [Header("Menu Buttons")]
     [SerializeField] private Button _playButton;
@@ -51,14 +53,42 @@ public class MenuController : MonoBehaviour
         if (_replayButton != null) _replayButton.onClick.AddListener(ReplayLevel);
         if (_gameOverMenuButton != null) _gameOverMenuButton.onClick.AddListener(ReturnToMenu);
 
+        if (_levelManager != null)
+            _levelManager.OnAllLevelsComplete += HandleAllLevelsComplete;
+
         _menuPanel.SetActive(!s_menuDismissed);
+    }
+
+    void OnDestroy()
+    {
+        if (_levelManager != null)
+            _levelManager.OnAllLevelsComplete -= HandleAllLevelsComplete;
     }
 
     public void StartLevel(int levelIndex)
     {
+        if (_fader != null)
+            _fader.RunTransition(() => BeginLevel(levelIndex));
+        else
+            BeginLevel(levelIndex);
+    }
+
+    // Midpoint of the fade: swap menu for a freshly built board, in place.
+    void BeginLevel(int levelIndex)
+    {
         s_menuDismissed = true;
         _menuPanel.SetActive(false);
-        _levelSelect.LoadLevel(levelIndex);
+
+        if (_levelManager != null)
+            _levelManager.LoadLevelByIndex(levelIndex);
+        else
+            _levelSelect.LoadLevel(levelIndex); // fallback: legacy scene reload
+    }
+
+    void HandleAllLevelsComplete()
+    {
+        s_menuDismissed = false;
+        _menuPanel.SetActive(true);
     }
 
     public void ReplayLevel()
