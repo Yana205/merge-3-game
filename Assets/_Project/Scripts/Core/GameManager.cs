@@ -12,15 +12,18 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    // Single-scene project: both flows reload the active scene rather than
+    // hardcoding scene names ("Game"/"MainMenu" don't exist in the build).
     public void LoadMainMenu()
     {
-        SceneManager.LoadScene("MainMenu");
+        MenuController.ShowMenuOnNextLoad();
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void LoadGame(int levelIndex)
     {
         PlayerPrefs.SetInt("SelectedLevel", levelIndex);
-        SceneManager.LoadScene("Game");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void QuitGame()

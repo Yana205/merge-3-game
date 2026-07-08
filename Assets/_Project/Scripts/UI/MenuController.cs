@@ -78,4 +78,11 @@ public class MenuController : MonoBehaviour
     {
         _levelSelect.QuitGame();
     }
+
+    // For flows that reload the scene and must land on the menu
+    // (e.g. finishing the last level) rather than auto-starting a level.
+    public static void ShowMenuOnNextLoad()
+    {
+        s_menuDismissed = false;
+    }
 }

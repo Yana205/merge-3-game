@@ -111,12 +111,18 @@ public class LevelManager : MonoBehaviour
         if (nextIndex < levels.Length)
         {
             PlayerPrefs.SetInt("SelectedLevel", nextIndex);
-            SceneManager.LoadScene("Game");
         }
         else
         {
+            // All levels complete — back to the main menu on reload.
             // FUTURE: show "All Levels Complete!" screen
-            SceneManager.LoadScene("MainMenu");
+            PlayerPrefs.SetInt("SelectedLevel", 0);
+            MenuController.ShowMenuOnNextLoad();
         }
+
+        // Single-scene project: reloading the active scene restarts cleanly
+        // at whatever "SelectedLevel" now points to. Hardcoded scene names
+        // ("Game"/"MainMenu") broke this button — those scenes don't exist.
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
