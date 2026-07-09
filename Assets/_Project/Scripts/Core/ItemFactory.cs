@@ -1,5 +1,14 @@
 using UnityEngine;
 
+// POOL DESIGN (carried over from Lesson 3's ItemPoolManager, now retired):
+// WHAT: gem Items — one spawned per move, two released + one taken per merge.
+// SIZE: 32 prewarmed (ServiceLoader.LoadAsync) — 5x5 board = 25 cells max,
+//       rounded up for merge churn; larger LevelData grids covered by growth.
+// STATIC OR DYNAMIC: dynamic — MonoBehaviourPool<T>.Get() grows on demand, so
+//       bigger boards never break; prewarm just avoids startup hitches.
+// RESET ON RELEASE: Item.ResetForPool() clears Tier, GemData, sprite, color,
+//       and the tier label before the item re-enters the pool.
+
 /// <summary>
 /// Thin creation seam between gameplay code and the Item pool. Plain C# class —
 /// it knows nothing about tiers, scoring, or the grid, and never calls
