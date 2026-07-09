@@ -12554,6 +12554,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Loader
   scoreController: {fileID: 903025811}
+  gridManager: {fileID: 1156920193}
 --- !u!4 &1971728763
 Transform:
   m_ObjectHideFlags: 0
@@ -12607,6 +12608,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8a706ffe691134d4ba058adc42551269, type: 2}
   screenFader: {fileID: 770344499}
   background: {fileID: 956265832}
+  serviceLoader: {fileID: 1971728762}
   currentLevel: {fileID: 0}
 --- !u!4 &1979452698
 Transform:
