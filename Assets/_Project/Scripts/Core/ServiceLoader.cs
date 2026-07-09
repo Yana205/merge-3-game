@@ -26,7 +26,7 @@ public class ServiceLoader : MonoBehaviour
     public ScoreController scoreController;
     [SerializeField] private GridManager gridManager;
 
-    // 25-cell default board + merge churn headroom (see ItemPoolManager notes).
+    // 25-cell default board + merge churn headroom (see POOL DESIGN in ItemFactory.cs).
     private const int PrewarmCount = 32;
 
     // Fired once every service is created and injected.
