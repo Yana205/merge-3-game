@@ -1204,6 +1204,7 @@ MonoBehaviour:
   levelBannerText: {fileID: 1791614122}
   bannerHold: 0.9
   bannerFade: 0.25
+  levelManager: {fileID: 1979452697}
 --- !u!114 &225028456
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7409,7 +7410,6 @@ MonoBehaviour:
   cellSize: 1.2
   cellPrefab: {fileID: 523681186941493802, guid: c69779ab06fca43ec9a075bec9f9f7a0, type: 3}
   itemPrefab: {fileID: 4554839274982553105, guid: d85a5b314379047c5a170ed2ae691597, type: 3}
-  itemPoolManager: {fileID: 0}
 --- !u!4 &1156920194
 Transform:
   m_ObjectHideFlags: 0
@@ -10858,7 +10858,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MergeManager
   gridManager: {fileID: 1156920193}
-  levelManager: {fileID: 1979452697}
 --- !u!4 &1736714829
 Transform:
   m_ObjectHideFlags: 0
@@ -12311,6 +12310,7 @@ MonoBehaviour:
   levelBannerText: {fileID: 0}
   bannerHold: 0.9
   bannerFade: 0.25
+  levelManager: {fileID: 1979452697}
 --- !u!4 &1934118410
 Transform:
   m_ObjectHideFlags: 0
@@ -12588,6 +12588,7 @@ MonoBehaviour:
   uiManager: {fileID: 1934118409}
   scoreController: {fileID: 903025811}
   inputHandler: {fileID: 1877011472}
+  mergeManager: {fileID: 1736714828}
   levels:
   - {fileID: 11400000, guid: d7a2f4eada0a444869e0e4542c280617, type: 2}
   - {fileID: 11400000, guid: 8a706ffe691134d4ba058adc42551269, type: 2}
