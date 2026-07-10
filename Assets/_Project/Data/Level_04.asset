@@ -10,14 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7d2174adf9f8143f79cd8550a5a0717a, type: 3}
-  m_Name: Level_01
+  m_Name: Level_04
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  rows: 5
-  cols: 5
-  targetScore: 100
-  backgroundSprite: {fileID: 21300000, guid: 0084869af11e94f86a052db3c9e5a35a, type: 3}
+  rows: 6
+  cols: 6
+  targetScore: 700
+  backgroundSprite: {fileID: 21300000, guid: f8972b96d2e0642be9254ecbe5d6de3b, type: 3}
   spawnTable:
   - tier: 1
-    weight: 1
-  emptyChance: 0.12
-  guaranteedPairs: 2
+    weight: 0.45
+  - tier: 2
+    weight: 0.3
+  - tier: 3
+    weight: 0.17
+  - tier: 4
+    weight: 0.08
+  emptyChance: 0.18
+  guaranteedPairs: 3
