@@ -242,6 +242,38 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
+    // Counts distinct adjacent same-tier pairs (each unordered pair once).
+    // LevelManager uses this to enforce LevelData.guaranteedPairs at board setup.
+    public int CountAdjacentSameTierPairs()
+    {
+        if (grid == null) return 0;
+
+        int pairs = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Cell cell = grid[r, c];
+                if (cell == null || !cell.IsOccupied()) continue;
+
+                int tier = cell.CurrentItem.Tier;
+                if (tier >= Item.MaxTier) continue;
+
+                // Only look at forward neighbours so each pair is counted once:
+                // east, south-west, south, south-east.
+                foreach (var (dr, dc) in new[] { (0, 1), (1, -1), (1, 0), (1, 1) })
+                {
+                    Cell neighbour = GetCell(r + dr, c + dc);
+                    if (neighbour != null && neighbour.IsOccupied()
+                        && neighbour.CurrentItem.Tier == tier)
+                        pairs++;
+                }
+            }
+        }
+
+        return pairs;
+    }
+
     public bool IsFull()
     {
         if (grid == null) return true;

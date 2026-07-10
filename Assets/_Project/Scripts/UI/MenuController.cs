@@ -19,9 +19,17 @@ public class MenuController : MonoBehaviour
 
     [Header("Menu Buttons")]
     [SerializeField] private Button _playButton;
-    [SerializeField] private Button _level1Button;
-    [SerializeField] private Button _level2Button;
     [SerializeField] private Button _quitButton;
+
+    [Header("Level Buttons (generated from LevelManager.levels)")]
+    [Tooltip("Disabled button cloned once per level; its label is replaced with 'Level N'.")]
+    [SerializeField] private Button _levelButtonTemplate;
+
+    // Anchor band the generated level buttons are laid out in, two per row,
+    // matching the hand-placed Play/Quit rows above and below it.
+    private const float BandTop = 0.40f;
+    private const float RowHeight = 0.08f;
+    private const float RowGap = 0.01f;
 
     [Header("Game Over Buttons")]
     [SerializeField] private Button _replayButton;
@@ -47,9 +55,8 @@ public class MenuController : MonoBehaviour
         }
 
         if (_playButton != null) _playButton.onClick.AddListener(() => StartLevel(0));
-        if (_level1Button != null) _level1Button.onClick.AddListener(() => StartLevel(0));
-        if (_level2Button != null) _level2Button.onClick.AddListener(() => StartLevel(1));
         if (_quitButton != null) _quitButton.onClick.AddListener(QuitGame);
+        BuildLevelButtons();
         if (_replayButton != null) _replayButton.onClick.AddListener(ReplayLevel);
         if (_gameOverMenuButton != null) _gameOverMenuButton.onClick.AddListener(ReturnToMenu);
 
@@ -63,6 +70,53 @@ public class MenuController : MonoBehaviour
     {
         if (_levelManager != null)
             _levelManager.OnAllLevelsComplete -= HandleAllLevelsComplete;
+    }
+
+    // One button per LevelData in LevelManager.levels, cloned from the
+    // template: two columns per row, a lone last button centered.
+    void BuildLevelButtons()
+    {
+        if (_levelButtonTemplate == null)
+        {
+            Debug.LogError("MenuController: level button template is not assigned.");
+            return;
+        }
+
+        int count = (_levelManager != null && _levelManager.levels != null)
+            ? _levelManager.levels.Length : 0;
+        _levelButtonTemplate.gameObject.SetActive(false);
+
+        for (int i = 0; i < count; i++)
+        {
+            int levelIndex = i;
+            Button button = Instantiate(_levelButtonTemplate, _levelButtonTemplate.transform.parent);
+            button.name = "Level" + (i + 1) + "Button";
+            button.onClick.AddListener(() => StartLevel(levelIndex));
+
+            var label = button.GetComponentInChildren<TMPro.TMP_Text>(true);
+            if (label != null) label.text = "Level " + (i + 1);
+
+            PositionLevelButton(button, i, count);
+            button.gameObject.SetActive(true);
+        }
+    }
+
+    void PositionLevelButton(Button button, int index, int count)
+    {
+        int row = index / 2;
+        bool loneLast = (index == count - 1) && (count % 2 == 1);
+
+        float yMax = BandTop - row * (RowHeight + RowGap);
+        float xMin, xMax;
+        if (loneLast) { xMin = 0.42f; xMax = 0.58f; }
+        else if (index % 2 == 0) { xMin = 0.33f; xMax = 0.49f; }
+        else { xMin = 0.51f; xMax = 0.67f; }
+
+        var rt = (RectTransform)button.transform;
+        rt.anchorMin = new Vector2(xMin, yMax - RowHeight);
+        rt.anchorMax = new Vector2(xMax, yMax);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
     }
 
     public void StartLevel(int levelIndex)

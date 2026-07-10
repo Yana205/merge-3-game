@@ -125,6 +125,8 @@ public class LevelManager : MonoBehaviour
                 gridManager.SpawnItem(gridManager.GetCell(r, c), tier);
             }
 
+        EnsureGuaranteedPairs(data.guaranteedPairs);
+
         if (inputHandler != null)
             inputHandler.ResetState();
 
@@ -135,6 +137,43 @@ public class LevelManager : MonoBehaviour
             uiManager.HideLevelComplete();
             uiManager.HideGameOver();
         }
+    }
+
+    // A random fill can start with no adjacent same-tier pair, which is an
+    // instant game over on a full board. Copy a random item's tier into one
+    // of its neighbours until the board has at least `wanted` merge pairs.
+    void EnsureGuaranteedPairs(int wanted)
+    {
+        if (wanted <= 0 || gridManager == null) return;
+
+        for (int safety = 0; safety < 64; safety++)
+        {
+            if (gridManager.CountAdjacentSameTierPairs() >= wanted)
+                return;
+
+            Cell source = gridManager.GetCell(
+                Random.Range(0, gridManager.rows), Random.Range(0, gridManager.cols));
+            if (source == null || !source.IsOccupied()
+                || source.CurrentItem.Tier >= Item.MaxTier)
+                continue;
+
+            int dr = Random.Range(-1, 2), dc = Random.Range(-1, 2);
+            if (dr == 0 && dc == 0) continue;
+            Cell target = gridManager.GetCell(source.row + dr, source.col + dc);
+            if (target == null) continue;
+
+            int tier = source.CurrentItem.Tier;
+            if (target.IsOccupied())
+            {
+                if (target.CurrentItem.Tier == tier) continue;
+                Item old = target.CurrentItem;
+                target.RemoveItem();
+                gridManager.DespawnItem(old);
+            }
+            gridManager.SpawnItem(target, tier);
+        }
+
+        Debug.LogWarning("LevelManager: could not guarantee " + wanted + " merge pairs at board setup.");
     }
 
     // Scoring lives here, not in MergeManager — the merge just announces itself.
