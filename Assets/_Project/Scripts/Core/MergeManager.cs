@@ -9,9 +9,12 @@ public class MergeManager : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
     public GridManager gridManager;
-    public LevelManager levelManager;
 
-    // FUTURE: add merge particle effect, sound, screen shake
+    // Fired after a successful merge with the merged item and its cell.
+    // Subscribers react independently: LevelManager scores it; future
+    // listeners can add particles, sound, screen shake without touching this class.
+    public event System.Action<Item, Cell> OnMerged;
+
     public bool TryMerge(Item itemA, Item itemB)
     {
         // Can't merge an item with itself
@@ -44,11 +47,7 @@ public class MergeManager : MonoBehaviour
             return false;
         }
 
-        if (levelManager != null)
-        {
-            int points = newItem.GemData != null ? newItem.GemData.scoreValue : newTier * 10;
-            levelManager.AddScore(points);
-        }
+        OnMerged?.Invoke(newItem, cellB);
 
         return true;
     }

@@ -7,6 +7,7 @@ public class LevelManager : MonoBehaviour
     public UIManager uiManager;
     public ScoreController scoreController;
     public InputHandler inputHandler;
+    public MergeManager mergeManager;
     public LevelData[] levels;
 
     [Header("Transitions (assign in Inspector)")]
@@ -19,6 +20,12 @@ public class LevelManager : MonoBehaviour
     // Fired after the last level is finished; MenuController shows the menu.
     public event System.Action OnAllLevelsComplete;
 
+    // Fired whenever the score changes, with (score, target). UIManager listens.
+    public event System.Action<int, int> OnScoreChanged;
+
+    // Fired once when the target score is reached. UIManager listens.
+    public event System.Action OnLevelComplete;
+
     [Header("Runtime State")]
     public LevelData currentLevel;
     public int CurrentScore => scoreController != null ? scoreController.Score : _localScore;
@@ -28,6 +35,9 @@ public class LevelManager : MonoBehaviour
     {
         if (inputHandler != null)
             inputHandler.OnGameOver += HandleGameOver;
+
+        if (mergeManager != null)
+            mergeManager.OnMerged += HandleMerged;
 
         if (levels == null || levels.Length == 0)
         {
@@ -56,6 +66,9 @@ public class LevelManager : MonoBehaviour
     {
         if (inputHandler != null)
             inputHandler.OnGameOver -= HandleGameOver;
+
+        if (mergeManager != null)
+            mergeManager.OnMerged -= HandleMerged;
 
         if (serviceLoader != null)
             serviceLoader.OnServicesReady -= HandleServicesReady;
@@ -115,12 +128,20 @@ public class LevelManager : MonoBehaviour
         if (inputHandler != null)
             inputHandler.ResetState();
 
+        OnScoreChanged?.Invoke(CurrentScore, data.targetScore);
+
         if (uiManager != null)
         {
-            uiManager.UpdateScore(CurrentScore, data.targetScore);
             uiManager.HideLevelComplete();
             uiManager.HideGameOver();
         }
+    }
+
+    // Scoring lives here, not in MergeManager — the merge just announces itself.
+    void HandleMerged(Item newItem, Cell cell)
+    {
+        int points = newItem.GemData != null ? newItem.GemData.scoreValue : newItem.Tier * 10;
+        AddScore(points);
     }
 
     public void AddScore(int points)
@@ -130,14 +151,12 @@ public class LevelManager : MonoBehaviour
         else
             _localScore += points;
 
-        if (uiManager != null)
-            uiManager.UpdateScore(CurrentScore, currentLevel.targetScore);
+        OnScoreChanged?.Invoke(CurrentScore, currentLevel.targetScore);
 
         if (CurrentScore >= currentLevel.targetScore)
         {
             // Level complete — freeze the board so no more cells can be moved/merged.
-            if (uiManager != null)
-                uiManager.ShowLevelComplete();
+            OnLevelComplete?.Invoke();
             if (inputHandler != null)
                 inputHandler.SetInputEnabled(false);
         }

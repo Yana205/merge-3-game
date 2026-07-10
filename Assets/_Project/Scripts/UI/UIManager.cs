@@ -16,7 +16,34 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float bannerHold = 0.9f;
     [SerializeField] private float bannerFade = 0.25f;
 
+    [Header("Events (assign in Inspector)")]
+    [SerializeField] private LevelManager levelManager;
+
     private Coroutine _bannerRoutine;
+
+    // Subscribe in Awake so we never miss the initial OnScoreChanged
+    // fired from LevelManager.Start when services are already ready.
+    void Awake()
+    {
+        if (levelManager != null)
+        {
+            levelManager.OnScoreChanged += UpdateScore;
+            levelManager.OnLevelComplete += ShowLevelComplete;
+        }
+        else
+        {
+            Debug.LogError("UIManager: levelManager is not assigned — score UI will not update.");
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (levelManager != null)
+        {
+            levelManager.OnScoreChanged -= UpdateScore;
+            levelManager.OnLevelComplete -= ShowLevelComplete;
+        }
+    }
 
     void Start()
     {
