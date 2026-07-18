@@ -16,10 +16,13 @@ public class MenuController : MonoBehaviour
     [SerializeField] private UIManager _uiManager;
     [SerializeField] private LevelManager _levelManager;
     [SerializeField] private ScreenFader _fader;
+    [SerializeField] private ProgressManager _progressManager;
 
     [Header("Menu Buttons")]
     [SerializeField] private Button _playButton;
     [SerializeField] private Button _quitButton;
+    [SerializeField] private Button _leaderboardButton;
+    [SerializeField] private LeaderboardUI _leaderboard;
 
     [Header("Level Buttons (generated from LevelManager.levels)")]
     [Tooltip("Disabled button cloned once per level; its label is replaced with 'Level N'.")]
@@ -34,6 +37,10 @@ public class MenuController : MonoBehaviour
     [Header("Game Over Buttons")]
     [SerializeField] private Button _replayButton;
     [SerializeField] private Button _gameOverMenuButton;
+
+    // Generated level buttons, kept so RefreshLevelButtonStates can update
+    // lock state / best score in place without re-instantiating them.
+    private readonly System.Collections.Generic.List<Button> _levelButtons = new();
 
     // Starting a level reloads the scene, which would re-show the menu.
     // This static survives the reload (but not a new play session), so the
@@ -56,6 +63,7 @@ public class MenuController : MonoBehaviour
 
         if (_playButton != null) _playButton.onClick.AddListener(() => StartLevel(0));
         if (_quitButton != null) _quitButton.onClick.AddListener(QuitGame);
+        if (_leaderboardButton != null) _leaderboardButton.onClick.AddListener(OpenLeaderboard);
         BuildLevelButtons();
         if (_replayButton != null) _replayButton.onClick.AddListener(ReplayLevel);
         if (_gameOverMenuButton != null) _gameOverMenuButton.onClick.AddListener(ReturnToMenu);
@@ -85,6 +93,7 @@ public class MenuController : MonoBehaviour
         int count = (_levelManager != null && _levelManager.levels != null)
             ? _levelManager.levels.Length : 0;
         _levelButtonTemplate.gameObject.SetActive(false);
+        _levelButtons.Clear();
 
         for (int i = 0; i < count; i++)
         {
@@ -93,11 +102,35 @@ public class MenuController : MonoBehaviour
             button.name = "Level" + (i + 1) + "Button";
             button.onClick.AddListener(() => StartLevel(levelIndex));
 
-            var label = button.GetComponentInChildren<TMPro.TMP_Text>(true);
-            if (label != null) label.text = "Level " + (i + 1);
-
             PositionLevelButton(button, i, count);
             button.gameObject.SetActive(true);
+            _levelButtons.Add(button);
+        }
+
+        RefreshLevelButtonStates();
+    }
+
+    // Updates label text, lock state and best-score display on the already
+    // generated level buttons — called after build and whenever progress
+    // may have changed (a level was just completed).
+    void RefreshLevelButtonStates()
+    {
+        for (int i = 0; i < _levelButtons.Count; i++)
+        {
+            Button button = _levelButtons[i];
+            bool unlocked = _progressManager == null || _progressManager.IsUnlocked(i);
+            button.interactable = unlocked;
+
+            var label = button.GetComponentInChildren<TMPro.TMP_Text>(true);
+            if (label != null)
+                label.text = unlocked ? "Level " + (i + 1) : "Level " + (i + 1) + " — Locked";
+
+            var bestScoreLabel = button.transform.Find("BestScoreLabel")?.GetComponent<TMPro.TMP_Text>();
+            if (bestScoreLabel != null)
+            {
+                bool completed = _progressManager != null && _progressManager.IsCompleted(i);
+                bestScoreLabel.text = completed ? "Best: " + _progressManager.GetBestScore(i) : "";
+            }
         }
     }
 
@@ -143,6 +176,7 @@ public class MenuController : MonoBehaviour
     {
         s_menuDismissed = false;
         _menuPanel.SetActive(true);
+        RefreshLevelButtonStates();
     }
 
     public void ReplayLevel()
@@ -156,11 +190,18 @@ public class MenuController : MonoBehaviour
             _uiManager.HideGameOver();
         s_menuDismissed = false;
         _menuPanel.SetActive(true);
+        RefreshLevelButtonStates();
     }
 
     public void QuitGame()
     {
         _levelSelect.QuitGame();
+    }
+
+    public void OpenLeaderboard()
+    {
+        if (_leaderboard != null)
+            _leaderboard.Show();
     }
 
     // For flows that reload the scene and must land on the menu

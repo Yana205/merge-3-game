@@ -9,6 +9,7 @@ public class LevelManager : MonoBehaviour
     public InputHandler inputHandler;
     public MergeManager mergeManager;
     public LevelData[] levels;
+    [SerializeField] private ProgressManager progressManager;
 
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
@@ -194,6 +195,10 @@ public class LevelManager : MonoBehaviour
 
         if (CurrentScore >= currentLevel.targetScore)
         {
+            int levelIndex = System.Array.IndexOf(levels, currentLevel);
+            if (levelIndex >= 0)
+                progressManager?.RecordResult(levelIndex, CurrentScore);
+
             // Level complete — freeze the board so no more cells can be moved/merged.
             OnLevelComplete?.Invoke();
             if (inputHandler != null)

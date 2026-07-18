@@ -11,7 +11,8 @@
 //                    the loaded prefab), ItemFactory, PlayerPrefsSaveSystem.
 // - INJECTIONS:      prefab + pool -> ItemFactory.Init;
 //                    factory -> GridManager.SetItemFactory;
-//                    save system -> ScoreController.Setup.
+//                    save system -> ScoreController.Setup;
+//                    separate save system (key "GameProgress") -> ProgressManager.Setup.
 // - READINESS:       OnServicesReady fires (and IsReady flips true) only after
 //                    every service above is built and injected; LevelManager
 //                    waits for it before loading the first level.
@@ -25,6 +26,7 @@ public class ServiceLoader : MonoBehaviour
     [Header("References (assign in Inspector)")]
     public ScoreController scoreController;
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private ProgressManager progressManager;
 
     // 25-cell default board + merge churn headroom (see POOL DESIGN in ItemFactory.cs).
     private const int PrewarmCount = 32;
@@ -51,6 +53,8 @@ public class ServiceLoader : MonoBehaviour
             ISaveSystem saveSystem = new PlayerPrefsSaveSystem();
             scoreController.Setup(saveSystem);
         }
+
+        progressManager?.Setup(new PlayerPrefsSaveSystem("GameProgress"));
 
         var handle = Addressables.LoadAssetAsync<GameObject>("GemItem");
         await handle.Task;
