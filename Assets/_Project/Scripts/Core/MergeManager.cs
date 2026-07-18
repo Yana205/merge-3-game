@@ -10,9 +10,9 @@ public class MergeManager : MonoBehaviour
     [Header("References (assign in Inspector)")]
     public GridManager gridManager;
 
-    // Fired after a successful merge with the merged item and its cell.
-    // Subscribers react independently: LevelManager scores it; future
-    // listeners can add particles, sound, screen shake without touching this class.
+    // Direct (local) event: fired after a successful merge with the merged item
+    // and its cell. Kept for owners that hold a MergeManager reference and want a
+    // tightly-scoped hook (juice, sound, screen shake) without going global.
     public event System.Action<Item, Cell> OnMerged;
 
     public bool TryMerge(Item itemA, Item itemB)
@@ -47,7 +47,12 @@ public class MergeManager : MonoBehaviour
             return false;
         }
 
+        // Direct event for local subscribers...
         OnMerged?.Invoke(newItem, cellB);
+
+        // ...and the global bus so any system can react (ScoreController adds the
+        // score here — MergeManager no longer needs to know scoring exists).
+        GameEvents.RaiseTileMerged(newItem, cellB);
 
         return true;
     }

@@ -18,6 +18,13 @@ public class Item : MonoBehaviour
     public int Tier { get; private set; }
     public GemTierData GemData { get; private set; }
 
+    // Direct (parent -> child) event: raised when this Item is about to return to
+    // the pool, passing itself so its owner can react at the item's last position
+    // (a merge/despawn burst, a sound). The subscriber list is cleared at the end
+    // of ResetForPool — see the note there — so a recycled instance never carries
+    // a previous owner's handler.
+    public event System.Action<Item> OnDespawned;
+
     void Awake()
     {
         if (spriteRenderer == null)
@@ -85,6 +92,11 @@ public class Item : MonoBehaviour
     /// </summary>
     public void ResetForPool()
     {
+        // Announce the despawn BEFORE clearing state, so listeners can still read
+        // this item's final tier / GemData / world position (e.g. to spawn a burst
+        // there). ?.Invoke keeps this safe when nobody is subscribed.
+        OnDespawned?.Invoke(this);
+
         Tier = 0;
         GemData = null;
 
@@ -96,6 +108,11 @@ public class Item : MonoBehaviour
 
         if (tierLabel != null)
             tierLabel.text = "";
+
+        // Pooled-object cleanup: unsubscription happens on return to pool, not in
+        // OnDestroy (a pooled item is rarely destroyed). Dropping every subscriber
+        // here means the recycled instance starts its next life with a clean event.
+        OnDespawned = null;
     }
 
     static Sprite GetWhiteSquare()
