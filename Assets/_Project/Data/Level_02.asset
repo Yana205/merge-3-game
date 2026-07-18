@@ -14,11 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   rows: 5
   cols: 5
-  targetScore: 200
+  targetScore: 250
+  backgroundSprite: {fileID: 21300000, guid: f8972b96d2e0642be9254ecbe5d6de3b, type: 3}
   spawnTable:
   - tier: 1
     weight: 0.7
   - tier: 2
     weight: 0.3
-  emptyChance: 0
-  guaranteedPairs: 1
+  emptyChance: 0.12
+  guaranteedPairs: 2

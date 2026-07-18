@@ -1,5 +1,9 @@
 using UnityEngine;
 
+// CACHE AUDIT (Lesson 3.1)
+// - CreateSquareSprite(): built a fresh 64x64 Texture2D for every cell that
+//   lacked a sprite (25 identical textures on a 5x5 grid). The sprite is now
+//   cached in the static _squareSprite field, mirroring Item.GetWhiteSquare().
 [ExecuteInEditMode]
 public class Cell : MonoBehaviour
 {
@@ -26,16 +30,21 @@ public class Cell : MonoBehaviour
     public void SetHighlight(Color color) { if (sr != null) sr.color = color; }
     public void ClearHighlight()          { if (sr != null) sr.color = originalColor; }
 
+    static Sprite _squareSprite;
+
     static Sprite CreateSquareSprite()
     {
-        Texture2D tex = new Texture2D(64, 64);
-        for (int x = 0; x < 64; x++)
-            for (int y = 0; y < 64; y++)
-                tex.SetPixel(x, y, Color.white);
-        tex.Apply();
-        Sprite s = Sprite.Create(tex, new Rect(0, 0, 64, 64), Vector2.one * 0.5f, 64);
-        s.name = "CellSquare";
-        return s;
+        if (_squareSprite == null)
+        {
+            Texture2D tex = new Texture2D(64, 64);
+            for (int x = 0; x < 64; x++)
+                for (int y = 0; y < 64; y++)
+                    tex.SetPixel(x, y, Color.white);
+            tex.Apply();
+            _squareSprite = Sprite.Create(tex, new Rect(0, 0, 64, 64), Vector2.one * 0.5f, 64);
+            _squareSprite.name = "CellSquare";
+        }
+        return _squareSprite;
     }
 
     public bool IsOccupied()

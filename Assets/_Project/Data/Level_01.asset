@@ -15,8 +15,9 @@ MonoBehaviour:
   rows: 5
   cols: 5
   targetScore: 100
+  backgroundSprite: {fileID: 21300000, guid: 0084869af11e94f86a052db3c9e5a35a, type: 3}
   spawnTable:
   - tier: 1
     weight: 1
-  emptyChance: 0
-  guaranteedPairs: 1
+  emptyChance: 0.12
+  guaranteedPairs: 2

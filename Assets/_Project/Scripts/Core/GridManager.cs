@@ -1,6 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// CACHE AUDIT (Lesson 3.1)
+// - ClearGrid(): replaced the whole-scene FindObjectsByType<Item> scan with the
+//   owned _liveItems list while playing. The scan is kept ONLY as the edit-mode
+//   fallback — editor tooling calls ClearGrid outside play mode, where the
+//   non-serialized list can be stale.
+// - SpawnItem() now registers every spawned Item in _liveItems, and the new
+//   DespawnItem() unregisters + destroys via SafeDestroy, so all Item lifetime
+//   is centralized in GridManager.
+// - Also audited: the project was searched for "new WaitForSeconds" in loops
+//   and none exist.
 public class GridManager : MonoBehaviour
 {
     [Header("Grid Settings")]
@@ -12,7 +22,17 @@ public class GridManager : MonoBehaviour
     public GameObject cellPrefab;
     public GameObject itemPrefab;
 
+    // Injected by ServiceLoader once the GemItem Addressable is loaded; the
+    // only spawn/despawn path in play mode.
+    private ItemFactory _itemFactory;
+
     private Cell[,] grid;
+
+    // Every Item spawned by this manager, so ClearGrid doesn't need a scene scan.
+    private readonly List<Item> _liveItems = new List<Item>();
+
+    // Log the "factory not injected" error only once, not on every spawn.
+    private bool _warnedPoolUnwired;
 
     // FUTURE: add grid border highlight, cell padding
 
@@ -51,9 +71,23 @@ public class GridManager : MonoBehaviour
 
     public void ClearGrid()
     {
-        Item[] items = FindObjectsByType<Item>(FindObjectsSortMode.None);
-        foreach (Item item in items)
-            SafeDestroy(item.gameObject);
+        if (Application.isPlaying)
+        {
+            // Despawn a copy: DespawnItem mutates _liveItems while we iterate.
+            Item[] items = _liveItems.ToArray();
+            foreach (Item item in items)
+                DespawnItem(item);
+            _liveItems.Clear();
+        }
+        else
+        {
+            // Edit-mode fallback: editor tooling calls ClearGrid outside play
+            // mode, where the non-serialized _liveItems list can be stale.
+            Item[] items = FindObjectsByType<Item>();
+            foreach (Item item in items)
+                SafeDestroy(item.gameObject);
+            _liveItems.Clear();
+        }
 
         if (grid != null)
         {
@@ -85,21 +119,63 @@ public class GridManager : MonoBehaviour
         return grid[row, col];
     }
 
+    // Called by ServiceLoader after the GemItem Addressable finished loading.
+    public void SetItemFactory(ItemFactory factory)
+    {
+        _itemFactory = factory;
+    }
+
     public Item SpawnItem(Cell cell, int tier = 1)
     {
         if (cell == null || cell.IsOccupied())
             return null;
-        if (itemPrefab == null)
+
+        Item item;
+        if (_itemFactory != null)
         {
-            Debug.LogError("GridManager: itemPrefab is not assigned.");
-            return null;
+            item = _itemFactory.Get(cell.transform.position);
+        }
+        else
+        {
+            // Last-resort fallback: keep the game running when ServiceLoader
+            // has not injected the factory yet (or is missing), but say so once.
+            if (!_warnedPoolUnwired)
+            {
+                Debug.LogError("GridManager: ItemFactory is not injected — falling back to Instantiate/Destroy for Items.");
+                _warnedPoolUnwired = true;
+            }
+
+            if (itemPrefab == null)
+            {
+                Debug.LogError("GridManager: itemPrefab is not assigned.");
+                return null;
+            }
+
+            GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
+            item = go.GetComponent<Item>();
         }
 
-        GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
-        Item item = go.GetComponent<Item>();
+        if (item == null)
+            return null;
+
         item.Setup(tier);
         cell.PlaceItem(item);
+        _liveItems.Add(item);
         return item;
+    }
+
+    // Central despawn point: every Item created by SpawnItem should die here so
+    // _liveItems stays accurate. In play mode items go back through the factory;
+    // the edit-mode path (and the unwired fallback) still uses SafeDestroy.
+    public void DespawnItem(Item item)
+    {
+        if (item == null) return;
+        _liveItems.Remove(item);
+
+        if (Application.isPlaying && _itemFactory != null)
+            _itemFactory.Release(item);
+        else
+            SafeDestroy(item.gameObject);
     }
 
     public Cell FindCellWithItem(Item item)
@@ -164,6 +240,38 @@ public class GridManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    // Counts distinct adjacent same-tier pairs (each unordered pair once).
+    // LevelManager uses this to enforce LevelData.guaranteedPairs at board setup.
+    public int CountAdjacentSameTierPairs()
+    {
+        if (grid == null) return 0;
+
+        int pairs = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Cell cell = grid[r, c];
+                if (cell == null || !cell.IsOccupied()) continue;
+
+                int tier = cell.CurrentItem.Tier;
+                if (tier >= Item.MaxTier) continue;
+
+                // Only look at forward neighbours so each pair is counted once:
+                // east, south-west, south, south-east.
+                foreach (var (dr, dc) in new[] { (0, 1), (1, -1), (1, 0), (1, 1) })
+                {
+                    Cell neighbour = GetCell(r + dr, c + dc);
+                    if (neighbour != null && neighbour.IsOccupied()
+                        && neighbour.CurrentItem.Tier == tier)
+                        pairs++;
+                }
+            }
+        }
+
+        return pairs;
     }
 
     public bool IsFull()

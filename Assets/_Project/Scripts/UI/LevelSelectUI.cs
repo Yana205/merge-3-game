@@ -15,7 +15,9 @@ public class LevelSelectUI : MonoBehaviour
         else
         {
             PlayerPrefs.SetInt("SelectedLevel", levelIndex);
-            SceneManager.LoadScene("Game");
+            // Reload the currently active scene — its name is not "Game",
+            // and hardcoding it breaks if the scene is ever renamed.
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }
 

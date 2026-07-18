@@ -22,7 +22,7 @@ Assets/_Project/
     Level/      — LevelManager, LevelData
     Data/       — GemConfig, GemTierData
     UI/         — UIManager, LevelSelectUI
-  Data/         — LevelData ScriptableObject assets (Level_01, Level_02)
+  Data/         — LevelData ScriptableObject assets (Level_01 … Level_05)
   Prefabs/      — Cell, Item
   scenes/       — mainGame.unity
 Assets/_Recovery/ — recovery scene backup

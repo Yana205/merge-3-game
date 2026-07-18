@@ -17,6 +17,10 @@ public class LevelData : ScriptableObject
     [Header("Win Condition")]
     public int targetScore = 100;
 
+    [Header("Presentation")]
+    [Tooltip("Optional per-level background; falls back to the scene background when empty.")]
+    public Sprite backgroundSprite;
+
     [Header("Spawn Config")]
     public SpawnEntry[] spawnTable = new SpawnEntry[] { new SpawnEntry { tier = 1, weight = 1f } };
     [Range(0f, 1f)] public float emptyChance = 0f;
