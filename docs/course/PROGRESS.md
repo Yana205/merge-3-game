@@ -16,6 +16,10 @@
     **plus** written manual steps in the lesson changelog under "Editor steps".
   → If a future session finds the MCP authorized (`ping` returns `pong`), it may
     perform those steps directly instead.
+  → **New asset files (`.cs`/`.shader`/`.uxml`/`.uss`) are committed WITHOUT their
+    `.meta`** — Unity generates the `.meta` on first Editor open (we never hand-write
+    them, per `CLAUDE.md`). First thing to do after pulling: open the project in
+    Unity once so it generates metas + recompiles, then commit the new `.meta` files.
 - **Git flow is fully automated** (push + `gh` are authenticated): each lesson gets
   its own branch, is committed, pushed, and merged `--no-ff` into `main` so `main`
   accumulates every lesson intact. We do **not** open PRs for this course (explicit
@@ -28,7 +32,7 @@
 | # | Lesson | Branch | Status | Changelog |
 |---|--------|--------|--------|-----------|
 | 0 | Course-loop infrastructure | `chore/course-loop-infrastructure` | ✅ DONE | — |
-| 1 | C# Events & Observer Pattern | `feature/lesson-01-events-observer` | 🔲 TODO | [lesson-01-events.md](changelogs/lesson-01-events.md) |
+| 1 | C# Events & Observer Pattern | `feature/lesson-01-events-observer` | ✅ DONE | [lesson-01-events.md](changelogs/lesson-01-events.md) |
 | 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | 🔲 TODO | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
 | 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | 🔲 TODO | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
 | 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | 🔲 TODO | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
@@ -44,7 +48,10 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Lesson 1 — C# Events & Observer Pattern.** Branch `feature/lesson-01-events-observer`.
+➡️ **Lesson 2 — UI Toolkit HUD.** Branch `feature/lesson-02-ui-toolkit-hud`.
+(Lesson 1 ✅ merged to `main`. Lesson 2's new `UIController` should subscribe to
+`GameEvents.ScoreChanged` — the "UIController listens to ScoreChanged" example that
+completes Lesson 1's bus-subscriber story.)
 
 ---
 
@@ -53,17 +60,17 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 Each box maps to a deliverable from the assignment. Check it only when the code
 (or Editor script + documented step) actually exists in the repo.
 
-### Lesson 1 — C# Events & Observer Pattern
+### Lesson 1 — C# Events & Observer Pattern ✅
 Part 1 — Event Bus & Direct Events
-- [ ] Static `GameEvents` class with ≥3 global events (ScoreChanged, TileMerged, SaveRequested)
-- [ ] Replace ≥1 direct method call with a bus event (LevelManager no longer calls `ScoreController.AddScore` on merge)
-- [ ] ≥2 systems subscribe to `GameEvents` (ScoreController + LevelManager; UIController joins in Lesson 2)
-- [ ] ≥1 Direct Event on a child component (`Item.OnDespawned`) with a parent subscribing via `+=`
+- [x] Static `GameEvents` class with ≥3 global events (ScoreChanged, TileMerged, SaveRequested)
+- [x] Replace ≥1 direct method call with a bus event (LevelManager no longer calls `ScoreController.AddScore` on merge)
+- [x] ≥2 systems subscribe to `GameEvents` (ScoreController + LevelManager; UIController joins in Lesson 2)
+- [x] ≥1 Direct Event on a child component (`Item.OnDespawned`) with a parent subscribing via `+=`
 Part 2 — Safe subscriptions & cleanup
-- [ ] `?.Invoke()` for ALL invocations (no bare `Invoke()`)
-- [ ] `AddListeners`/`RemoveListeners` pattern with unsubscribe in `OnDisable`/`OnDestroy`
-- [ ] Pooled objects unsubscribe on return to pool (`Item.ResetForPool` clears child-event subscribers)
-- [ ] AI review for missing unsubscribes (fresh-context reviewer agent; findings in changelog)
+- [x] `?.Invoke()` for ALL invocations (no bare `Invoke()`)
+- [x] `AddListeners`/`RemoveListeners` pattern with unsubscribe in `OnDisable`/`OnDestroy`
+- [x] Pooled objects unsubscribe on return to pool (`Item.ResetForPool` clears child-event subscribers)
+- [x] AI review for missing unsubscribes (fresh-context reviewer agent; findings in changelog)
 
 ### Lesson 2 — UI Toolkit HUD
 - [ ] `GameHUD.uxml` with ≥3 elements (score label, high-score label, a button)

@@ -159,6 +159,14 @@ public class GridManager : MonoBehaviour
             return null;
 
         item.Setup(tier);
+
+        // Parent subscribes to the child's direct event via += — the Observer
+        // pattern for an owner that holds the child instance. Item.ResetForPool
+        // clears its own subscribers on pool return, so this subscription is
+        // dropped automatically when the item despawns (no manual -= leak for the
+        // pooled object).
+        item.OnDespawned += HandleItemDespawned;
+
         cell.PlaceItem(item);
         _liveItems.Add(item);
         return item;
@@ -176,6 +184,16 @@ public class GridManager : MonoBehaviour
             _itemFactory.Release(item);
         else
             SafeDestroy(item.gameObject);
+    }
+
+    // Running count of items that have left the board this play session, driven
+    // solely by the child's OnDespawned event. Small on its own, but it proves the
+    // parent hook fires; the juice pass hangs a despawn burst off the same signal.
+    public int TilesDespawnedThisSession { get; private set; }
+
+    void HandleItemDespawned(Item item)
+    {
+        TilesDespawnedThisSession++;
     }
 
     public Cell FindCellWithItem(Item item)
