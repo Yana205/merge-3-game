@@ -35,7 +35,7 @@
 | 1 | C# Events & Observer Pattern | `feature/lesson-01-events-observer` | ✅ DONE | [lesson-01-events.md](changelogs/lesson-01-events.md) |
 | 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | ✅ DONE | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
 | 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | ✅ DONE | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
-| 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | 🔲 TODO | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
+| 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | ✅ DONE* | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
 | 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | 🔲 TODO | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
 | J | Juice & particles polish (presentation) | `feature/juice-and-particles` | 🔲 TODO | [juice-and-particles.md](changelogs/juice-and-particles.md) |
 
@@ -48,10 +48,11 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Lesson 4 — Shader effects (ShaderToy port + runtime controller).** Branch `feature/lesson-04-shader-effects`.
-(Lessons 1–3 ✅ merged to `main`. Port a ShaderToy GLSL effect to URP HLSL (`.shader`),
-add a C# controller that drives a shader property at runtime via `renderer.material`
-with `Destroy(_mat)` in `OnDestroy`, and document Shader Graph build steps + Director Notes.)
+➡️ **Lesson 8 — Data-driven design & ScriptableObjects.** Branch `feature/lesson-08-data-driven`.
+(Lessons 1–4 ✅ merged to `main`. `*` = Lesson 4's Shader Graph sub-item is documented
+Editor build steps, not a committed `.shadergraph`. Lesson 8: convert an item family to
+a locked ScriptableObject, add tiers + `GetItemByWeightedRandom()`, a JSON→typed loader
+that reports bad values, and a validator run from an Editor menu.)
 
 ---
 
@@ -89,12 +90,12 @@ Part 2 — Safe subscriptions & cleanup
 - [x] Dynamic alpha (breathing) + ≥1 extra animated property (crystal-appropriate)
 - [x] Material Editor script + assignment steps (crystal cells, not a water plane)
 
-### Lesson 4 — Shader effects
-- [ ] Shader Graph effect (noise + Time → Alpha/Base Color) — **needs Editor**; documented build steps
-- [ ] ShaderToy GLSL → Unity HLSL port running in-scene (`.shader`)
-- [ ] C# controller drives a shader property at runtime via `renderer.material` (not shared)
-- [ ] `Destroy(_mat)` in `OnDestroy()`
-- [ ] Director Notes for each shader (changelog)
+### Lesson 4 — Shader effects ✅
+- [x] Shader Graph effect (noise + Time → Alpha/Base Color) — documented Editor build steps (⏸ `.shadergraph` can't be authored headless)
+- [x] ShaderToy GLSL → Unity HLSL port running in-scene (`Shaders/CrystalAura.shader`)
+- [x] C# controller drives a shader property at runtime via `renderer.material` (not shared)
+- [x] `Destroy(_mat)` in `OnDestroy()`
+- [x] Director Notes for each shader (changelog)
 
 ### Lesson 8 — Data-driven design & ScriptableObjects
 - [ ] One item family → ScriptableObject with `[CreateAssetMenu]`, `[SerializeField] private` + read-only getters
