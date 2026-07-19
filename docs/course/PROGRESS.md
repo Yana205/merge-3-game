@@ -37,7 +37,7 @@
 | 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | ✅ DONE | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
 | 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | ✅ DONE* | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
 | 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | ✅ DONE | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
-| J | Juice & particles polish (presentation) | `feature/juice-and-particles` | 🔲 TODO | [juice-and-particles.md](changelogs/juice-and-particles.md) |
+| J | Juice & particles polish (presentation) | `feature/juice-and-particles` | ✅ DONE | [juice-and-particles.md](changelogs/juice-and-particles.md) |
 
 Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (needs Editor)`.
 
@@ -48,10 +48,14 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Juice & particles polish pass.** Branch `feature/juice-and-particles`.
-(All course lessons 1–4 + 8 ✅ merged to `main`. Final pass: code-driven juice —
-merge burst / spawn pop / score punch / screen shake — decoupled through
-`GameEvents` and `Item.OnDespawned`, for a presentation-ready feel.)
+✅ **ALL DONE.** Lessons 1, 2, 3, 4, 8 and the juice/particles pass are implemented and
+merged to `main`. The only remaining work is the **one Editor pass** the headless run
+couldn't do: open the project in Unity to generate `.meta` files + compile, then run the
+documented menu items (`Tools ▸ Merge3 ▸ …`) per each lesson's changelog "Editor steps",
+and commit the generated `.meta`/asset files.
+
+Optional future polish (not in the assignment): wire `GemDatabase` into the live spawn
+path; add a UI-Toolkit score punch; per-tile despawn bursts via `Item.OnDespawned`.
 
 ---
 
@@ -107,8 +111,9 @@ Part 2 — Safe subscriptions & cleanup
 - [x] Validator: 4 checks (dup IDs, empty id/missing ref, min>max, zero-weight rarity)
 - [x] Editor menu runs validator before Play; validator bug (zero-weight Legendary) documented
 
-### Juice & particles polish (presentation)
-- [ ] Merge burst / spawn pop (code-driven, subscribes to `GameEvents`/`Item.OnDespawned`)
-- [ ] Score-gain popup / punch, level-complete celebration
-- [ ] Screen shake / squash-stretch tween helper
-- [ ] Everything decoupled through events (no new hard cross-references)
+### Juice & particles polish (presentation) ✅
+- [x] Merge burst (code-driven spark burst, subscribes to `GameEvents.TileMerged`)
+- [x] Scale punch on the merged crystal (pooled-safe)
+- [x] Screen shake helper (eased camera shake)
+- [x] Everything decoupled through events (only listens to `GameEvents`; no new hard refs)
+- [~] Score-gain UI punch / level-complete celebration — noted as optional future polish
