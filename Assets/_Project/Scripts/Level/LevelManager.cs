@@ -31,10 +31,30 @@ public class LevelManager : MonoBehaviour
     // Fired once when the target score is reached. UIManager listens.
     public event System.Action OnLevelComplete;
 
+    // Fired whenever the endless level number changes (run start / advance).
+    public event System.Action<int> OnLevelChanged;
+
+    [Header("Endless Mode")]
+    [Tooltip("Board size for every endless level.")]
+    [SerializeField] private int endlessRows = 6;
+    [SerializeField] private int endlessCols = 6;
+    [Tooltip("Points needed to clear level 1.")]
+    [SerializeField] private int baseTarget = 120;
+    [Tooltip("How much each level's point requirement grows over the previous one.")]
+    [SerializeField] private int targetGrowth = 90;
+
     [Header("Runtime State")]
     public LevelData currentLevel;
     public int CurrentScore => scoreController != null ? scoreController.Score : _localScore;
     private int _localScore;
+
+    // Endless run state.
+    private bool _runActive;
+    private int _endlessLevel;      // 1-based level number of the current run
+    private int _levelTarget;       // absolute cumulative score that clears this level
+
+    public int EndlessLevel => _endlessLevel;
+    public int LevelTarget => _levelTarget;
 
     // Guards the level-complete side effects (progress record, OnLevelComplete,
     // input freeze) so they fire exactly once per level, even though ScoreChanged
@@ -45,22 +65,19 @@ public class LevelManager : MonoBehaviour
     {
         AddListeners();
 
-        if (levels == null || levels.Length == 0)
-        {
-            Debug.LogError("LevelManager: No levels assigned.");
-            return;
-        }
+        // Endless mode generates its levels procedurally, so the `levels` array is
+        // no longer required to start a run.
 
         // Don't touch the board until ServiceLoader has loaded the GemItem
         // Addressable and injected the ItemFactory into GridManager.
         if (serviceLoader == null)
         {
-            Debug.LogError("LevelManager: serviceLoader is not assigned — loading the level without waiting for services.");
-            LoadSelectedLevel();
+            Debug.LogError("LevelManager: serviceLoader is not assigned — starting the run without waiting for services.");
+            StartEndlessRun();
         }
         else if (serviceLoader.IsReady)
         {
-            LoadSelectedLevel();
+            StartEndlessRun();
         }
         else
         {
@@ -102,20 +119,111 @@ public class LevelManager : MonoBehaviour
     void HandleServicesReady()
     {
         serviceLoader.OnServicesReady -= HandleServicesReady;
-        LoadSelectedLevel();
-    }
-
-    void LoadSelectedLevel()
-    {
-        int levelIndex = PlayerPrefs.GetInt("SelectedLevel", 0);
-        if (levelIndex >= 0 && levelIndex < levels.Length)
-            LoadLevel(levels[levelIndex]);
+        StartEndlessRun();
     }
 
     void HandleGameOver()
     {
+        // End the run and record it before the game-over screen shows the result.
+        int score = CurrentScore;
+        int level = _endlessLevel;
+        if (_runActive)
+        {
+            _runActive = false;
+            progressManager?.RecordRun(score, level);
+        }
+
         if (uiManager != null)
-            uiManager.ShowGameOver();
+            uiManager.ShowGameOver(score, level);
+    }
+
+    // ----- Endless mode ------------------------------------------------------
+
+    /// <summary>
+    /// Start a fresh infinite run: score back to 0, level 1, first board built.
+    /// Levels then advance automatically as the running score passes each target.
+    /// </summary>
+    public void StartEndlessRun()
+    {
+        _runActive = true;
+        _endlessLevel = 1;
+        _levelComplete = false;
+        _levelTarget = baseTarget;
+
+        scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
+        _localScore = 0;
+
+        BuildEndlessBoard(_endlessLevel);
+        OnLevelChanged?.Invoke(_endlessLevel);
+        OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
+
+        if (uiManager != null)
+        {
+            uiManager.HideGameOver();
+            uiManager.HideLevelComplete();
+            uiManager.ShowLevelBanner("Level 1");
+        }
+        if (inputHandler != null)
+            inputHandler.ResetState();
+    }
+
+    // Clear the run's score requirement for the current level is met — build the
+    // next, harder board (score carries over) and announce the new level.
+    void AdvanceLevel()
+    {
+        _endlessLevel++;
+        int increment = baseTarget + (_endlessLevel - 1) * targetGrowth;
+        _levelTarget = CurrentScore + increment;
+
+        BuildEndlessBoard(_endlessLevel);
+        OnLevelChanged?.Invoke(_endlessLevel);
+        OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
+
+        if (uiManager != null)
+            uiManager.ShowLevelBanner("Level " + _endlessLevel);
+        if (inputHandler != null)
+            inputHandler.ResetState();
+    }
+
+    // Fill a fresh board for the given level WITHOUT resetting the run score.
+    void BuildEndlessBoard(int level)
+    {
+        if (gridManager == null) return;
+
+        LevelData data = BuildEndlessLevelData(level);
+        currentLevel = data;
+
+        gridManager.CreateGrid(data.rows, data.cols);
+        for (int r = 0; r < data.rows; r++)
+            for (int c = 0; c < data.cols; c++)
+            {
+                if (Random.value < data.emptyChance) continue;
+                gridManager.SpawnItem(gridManager.GetCell(r, c), data.PickRandomTier());
+            }
+
+        EnsureGuaranteedPairs(data.guaranteedPairs);
+    }
+
+    // Procedurally scale a level: same board size, escalating target, and a
+    // rising spawn floor so higher levels start with more high-tier clutter.
+    LevelData BuildEndlessLevelData(int level)
+    {
+        var data = ScriptableObject.CreateInstance<LevelData>();
+        data.rows = endlessRows;
+        data.cols = endlessCols;
+        data.targetScore = _levelTarget;
+        data.emptyChance = 0.28f;
+        data.guaranteedPairs = 3;
+
+        // Spawn tiers 1..maxSpawn, weighted toward the low end; maxSpawn climbs
+        // with the level (capped below the ladder top so a merge is always left).
+        int maxSpawn = Mathf.Clamp(1 + (level - 1) / 2, 1, Mathf.Max(1, Item.MaxTier - 2));
+        var table = new System.Collections.Generic.List<SpawnEntry>();
+        for (int t = 1; t <= maxSpawn; t++)
+            table.Add(new SpawnEntry { tier = t, weight = Mathf.Max(1f, maxSpawn - t + 1) });
+        data.spawnTable = table.ToArray();
+
+        return data;
     }
 
     // FUTURE: add loading screen, level transition animation
@@ -212,8 +320,17 @@ public class LevelManager : MonoBehaviour
     // longer computes merge points itself (that moved to ScoreController).
     void HandleScoreChanged(int total)
     {
-        OnScoreChanged?.Invoke(total, currentLevel != null ? currentLevel.targetScore : 0);
+        if (_runActive)
+        {
+            OnScoreChanged?.Invoke(total, _levelTarget);
+            // Reaching the target rolls straight into the next, harder level —
+            // the score carries over, so the run only ends on a board jam.
+            if (total >= _levelTarget)
+                AdvanceLevel();
+            return;
+        }
 
+        OnScoreChanged?.Invoke(total, currentLevel != null ? currentLevel.targetScore : 0);
         if (currentLevel != null)
             CheckLevelComplete(total);
     }
