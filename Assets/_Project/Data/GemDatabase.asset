@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f873817f18327f44b84ba050eba76bf9, type: 3}
+  m_Name: GemDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::GemDatabase
+  gems:
+  - {fileID: 11400000, guid: f356c9f59d4846e409cc6249941ac1a7, type: 2}
+  - {fileID: 11400000, guid: a987161f96c17ed4f848f3e9e37b4dbf, type: 2}
+  - {fileID: 11400000, guid: 01ae104d7d479d94eaae495a1a360374, type: 2}
+  - {fileID: 11400000, guid: 2029abb5a5a0a3645aa218aae0f4a0fa, type: 2}
+  - {fileID: 11400000, guid: adb58847ae2a84d4fb5b0673a9f01f3d, type: 2}
+  - {fileID: 11400000, guid: e4a4892599ad2414bb58acdc51cc8b65, type: 2}
+  - {fileID: 11400000, guid: f462359a8c6e868438da7a2b65bfb17a, type: 2}
+  - {fileID: 11400000, guid: 65f62e75e0273374cab710694135d3fa, type: 2}
+  rarityWeights:
+  - rarity: 0
+    weight: 60
+  - rarity: 1
+    weight: 25
+  - rarity: 2
+    weight: 12
+  - rarity: 3
+    weight: 3
