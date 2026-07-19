@@ -36,7 +36,7 @@
 | 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | ✅ DONE | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
 | 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | ✅ DONE | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
 | 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | ✅ DONE* | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
-| 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | 🔲 TODO | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
+| 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | ✅ DONE | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
 | J | Juice & particles polish (presentation) | `feature/juice-and-particles` | 🔲 TODO | [juice-and-particles.md](changelogs/juice-and-particles.md) |
 
 Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (needs Editor)`.
@@ -48,11 +48,10 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Lesson 8 — Data-driven design & ScriptableObjects.** Branch `feature/lesson-08-data-driven`.
-(Lessons 1–4 ✅ merged to `main`. `*` = Lesson 4's Shader Graph sub-item is documented
-Editor build steps, not a committed `.shadergraph`. Lesson 8: convert an item family to
-a locked ScriptableObject, add tiers + `GetItemByWeightedRandom()`, a JSON→typed loader
-that reports bad values, and a validator run from an Editor menu.)
+➡️ **Juice & particles polish pass.** Branch `feature/juice-and-particles`.
+(All course lessons 1–4 + 8 ✅ merged to `main`. Final pass: code-driven juice —
+merge burst / spawn pop / score punch / screen shake — decoupled through
+`GameEvents` and `Item.OnDespawned`, for a presentation-ready feel.)
 
 ---
 
@@ -97,16 +96,16 @@ Part 2 — Safe subscriptions & cleanup
 - [x] `Destroy(_mat)` in `OnDestroy()`
 - [x] Director Notes for each shader (changelog)
 
-### Lesson 8 — Data-driven design & ScriptableObjects
-- [ ] One item family → ScriptableObject with `[CreateAssetMenu]`, `[SerializeField] private` + read-only getters
-- [ ] ≥3 data instances (Editor menu generator) read by existing MonoBehaviour with zero logic changes
-- [ ] Tier field + per-tier/per-item weight; generic `GetItemByWeightedRandom()`
-- [ ] Changing a weight (no code) visibly shifts spawn frequency
-- [ ] JSON file + `[SerializeField] TextAsset` load; typed deserialization (color/enum/id → real types)
-- [ ] Deliberately-broken value reported clearly (no silent default/crash)
-- [ ] Bulk-generate 5–10 entries from schema; work with zero manual edits
-- [ ] Validator: ≥3 checks (dup IDs, invalid color/enum, min>max, missing refs)
-- [ ] Editor menu runs validator before Play; document one bug the validator caught
+### Lesson 8 — Data-driven design & ScriptableObjects ✅
+- [x] One item family → ScriptableObject with `[CreateAssetMenu]`, `[SerializeField] private` + read-only getters
+- [x] ≥3 data instances (Editor menu generator) read generically (GemDatabase/GemJsonLoader)
+- [x] Tier field + per-tier/per-item weight; generic `GetItemByWeightedRandom()`
+- [x] Changing a weight (no code) visibly shifts spawn frequency (Sample Distribution)
+- [x] JSON file + `[SerializeField] TextAsset` load; typed deserialization (color/enum/id → real types)
+- [x] Deliberately-broken value reported clearly (no silent default/crash) — break test documented
+- [x] Bulk-generate 5–10 entries from schema (8 gems); zero manual edits
+- [x] Validator: 4 checks (dup IDs, empty id/missing ref, min>max, zero-weight rarity)
+- [x] Editor menu runs validator before Play; validator bug (zero-weight Legendary) documented
 
 ### Juice & particles polish (presentation)
 - [ ] Merge burst / spawn pop (code-driven, subscribes to `GameEvents`/`Item.OnDespawned`)

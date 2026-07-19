@@ -1,0 +1,18 @@
+{
+  "gems": [
+    { "id": "obsidian",  "displayName": "Obsidian",   "rarity": "Common",    "scoreValue": 10,  "colorHex": "#2B2B33", "minTier": 1, "maxTier": 3 },
+    { "id": "quartz",    "displayName": "Quartz",     "rarity": "Common",    "scoreValue": 15,  "colorHex": "#E8E8F0", "minTier": 1, "maxTier": 4 },
+    { "id": "amethyst",  "displayName": "Amethyst",   "rarity": "Uncommon",  "scoreValue": 30,  "colorHex": "#9B59B6", "minTier": 2, "maxTier": 6 },
+    { "id": "emerald",   "displayName": "Emerald",    "rarity": "Uncommon",  "scoreValue": 40,  "colorHex": "#2ECC71", "minTier": 3, "maxTier": 7 },
+    { "id": "sapphire",  "displayName": "Sapphire",   "rarity": "Rare",      "scoreValue": 70,  "colorHex": "#2E86FF", "minTier": 4, "maxTier": 9 },
+    { "id": "ruby",      "displayName": "Ruby",       "rarity": "Rare",      "scoreValue": 90,  "colorHex": "#E74C3C", "minTier": 5, "maxTier": 10 },
+    { "id": "diamond",   "displayName": "Diamond",    "rarity": "Legendary", "scoreValue": 160, "colorHex": "#B9F2FF", "minTier": 7, "maxTier": 12 },
+    { "id": "starstone", "displayName": "Star Stone", "rarity": "Legendary", "scoreValue": 220, "colorHex": "#FFD86B", "minTier": 9, "maxTier": 14 }
+  ],
+  "rarityWeights": [
+    { "rarity": "Common",    "weight": 60 },
+    { "rarity": "Uncommon",  "weight": 25 },
+    { "rarity": "Rare",      "weight": 12 },
+    { "rarity": "Legendary", "weight": 3 }
+  ]
+}
