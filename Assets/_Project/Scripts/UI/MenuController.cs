@@ -95,19 +95,46 @@ public class MenuController : MonoBehaviour
         _levelButtonTemplate.gameObject.SetActive(false);
         _levelButtons.Clear();
 
+        Transform parent = _levelButtonTemplate.transform.parent;
+
         for (int i = 0; i < count; i++)
         {
             int levelIndex = i;
-            Button button = Instantiate(_levelButtonTemplate, _levelButtonTemplate.transform.parent);
-            button.name = "Level" + (i + 1) + "Button";
-            button.onClick.AddListener(() => StartLevel(levelIndex));
 
-            PositionLevelButton(button, i, count);
+            // Reuse a level button baked into the scene ("LevelNButton") if present,
+            // so the menu is WYSIWYG in the Editor before Play; only clone the
+            // template when a baked button is missing (keeps the old behaviour as a
+            // fallback and auto-covers newly added levels).
+            Button button = FindBakedLevelButton(parent, i);
+            if (button == null)
+            {
+                button = Instantiate(_levelButtonTemplate, parent);
+                button.name = "Level" + (i + 1) + "Button";
+                PositionLevelButton(button, i, count);
+            }
+
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => StartLevel(levelIndex));
             button.gameObject.SetActive(true);
             _levelButtons.Add(button);
         }
 
         RefreshLevelButtonStates();
+    }
+
+    // Finds a level button pre-placed in the scene under the template's parent.
+    // Skips the template itself, which historically shares the "Level1Button" name.
+    Button FindBakedLevelButton(Transform parent, int index)
+    {
+        if (parent == null) return null;
+        string wanted = "Level" + (index + 1) + "Button";
+        foreach (Transform child in parent)
+        {
+            if (child.name != wanted) continue;
+            if (_levelButtonTemplate != null && child == _levelButtonTemplate.transform) continue;
+            return child.GetComponent<Button>();
+        }
+        return null;
     }
 
     // Updates label text, lock state and best-score display on the already
