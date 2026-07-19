@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <!-- Full-screen transparent root; the HUD sits in the top-left corner. -->
+    <ui:VisualElement name="hud-root" class="hud-root" picking-mode="Ignore">
+        <!-- USS is linked on the root so the layout carries its own styling. -->
+        <Style src="GameHUD.uss" />
+        <ui:VisualElement name="score-panel" class="panel">
+            <!-- .panel-header = the class selector demonstrated in the USS. -->
+            <ui:Label name="hud-title" text="✦ CRYSTALS ✦" class="panel-header" />
+
+            <!-- #score-label = the ID selector; UIController queries this by name. -->
+            <ui:Label name="score-label" text="Score: 0" class="stat stat--score" />
+            <ui:Label name="high-score-label" text="Best: 0" class="stat stat--best" />
+
+            <!-- Button = the type selector; clicked is wired in UIController. -->
+            <ui:Button name="restart-button" text="Restart" class="restart-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
