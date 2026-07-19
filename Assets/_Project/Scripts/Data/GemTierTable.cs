@@ -1,9 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Built-in 20-step gem tier ladder ("the merge cell table"), used when no
+/// Built-in 10-step gem tier ladder ("the merge cell table"), used when no
 /// GemConfig asset is assigned on the Item prefab. Each tier gets a distinct
 /// color and name so the merge progression is readable in-game with no art.
+///
+/// Trimmed from 20 near-duplicate hues to 10 maximally-separated ones: every
+/// merge jumps far around the colour wheel (dark -> red -> green -> blue ->
+/// yellow -> purple -> cyan -> orange -> pink -> white), so a fresh merge is
+/// always an obvious colour change rather than a subtle shade shift.
 ///
 /// To use real gem sprites later: create a GemConfig asset, fill its tiers with
 /// the sliced gem sprites, and assign it to the Item prefab. GemConfig then
@@ -11,22 +16,18 @@ using UnityEngine;
 /// </summary>
 public static class GemTierTable
 {
-    // Ordered tier 1 -> 20. Names are flavor; the item label shows the level number.
+    // Ordered tier 1 -> 10. Names are flavor; the item label shows the level number.
     static readonly string[] Names =
     {
-        "Obsidian", "Hematite", "Garnet", "Carnelian", "Amber",
-        "Citrine", "Peridot", "Emerald", "Malachite", "Aquamarine",
-        "Turquoise", "Sapphire", "Lapis", "Amethyst", "Sugilite",
-        "Rhodochrosite", "Rose Quartz", "Ruby", "Diamond", "Star Gem",
+        "Obsidian", "Ruby", "Emerald", "Sapphire", "Citrine",
+        "Amethyst", "Turquoise", "Carnelian", "Rhodochrosite", "Diamond",
     };
 
-    // Distinct, well-separated colors so adjacent levels never look alike.
+    // Maximally-separated hues so every consecutive tier is an obvious jump.
     static readonly Color[] Colors =
     {
-        Hex(0x2C3E50), Hex(0x7F8C8D), Hex(0xC0392B), Hex(0xE67E22), Hex(0xF5B041),
-        Hex(0xF7DC6F), Hex(0xA9DFBF), Hex(0x229954), Hex(0x17A589), Hex(0x48C9B0),
-        Hex(0x5DADE2), Hex(0x2E86C1), Hex(0x1F3A93), Hex(0x8E44AD), Hex(0x6C3483),
-        Hex(0xE84393), Hex(0xF5B7CE), Hex(0xE74C3C), Hex(0xFDFEFE), Hex(0xFFD700),
+        Hex(0x2B2B33), Hex(0xE7263C), Hex(0x16C25A), Hex(0x2E6BFF), Hex(0xFFC531),
+        Hex(0x9B3CE0), Hex(0x17D9D0), Hex(0xFF6A1A), Hex(0xFF3DAE), Hex(0xEAF6FF),
     };
 
     /// <summary>Number of tiers in the ladder (also the max mergeable level).</summary>
