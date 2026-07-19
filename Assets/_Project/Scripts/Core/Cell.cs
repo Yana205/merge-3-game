@@ -13,16 +13,8 @@ public class Cell : MonoBehaviour
 
     public Item CurrentItem { get; private set; }
 
-    [Header("Crystal socket look")]
-    [Tooltip("Base colour of the crystal socket the gem sits in (the visible frame around each gem).")]
-    [SerializeField] private Color socketColor = new Color(0.16f, 0.22f, 0.46f, 1f);
-    [Tooltip("Peak colour the socket shimmers up to, so the frame feels alive.")]
-    [SerializeField] private Color socketGlow = new Color(0.34f, 0.55f, 0.95f, 1f);
-    [SerializeField] private float shimmerSpeed = 1.6f;
-
     private SpriteRenderer sr;
     private Color originalColor;
-    private bool _highlighted;
 
     void Awake()
     {
@@ -30,31 +22,18 @@ public class Cell : MonoBehaviour
         if (sr != null && sr.sprite == null)
             sr.sprite = CreateSquareSprite();
 
+        // The cell stays white so the animated MagicalCrystal shader shows its
+        // own colours; the sprite is just an alpha mask. SetHighlight tints the
+        // crystal for drag feedback, ClearHighlight restores it.
         if (sr != null)
         {
-            sr.color = socketColor;
-            originalColor = socketColor;
+            sr.color = Color.white;
+            originalColor = Color.white;
         }
     }
 
-    // Gentle per-cell shimmer so the crystal frame breathes. Runs only in play
-    // mode and yields to an active drag highlight so input feedback still shows.
-    // (The custom MagicalCrystal shader does not render on a URP SpriteRenderer,
-    // so the "alive crystal" look is driven here via the sprite's vertex colour,
-    // which renders reliably through the default sprite material.)
-    void Update()
-    {
-        if (!Application.isPlaying || sr == null || _highlighted) return;
-
-        float phase = (row + col) * 0.55f;
-        float t = 0.5f + 0.5f * Mathf.Sin(Time.time * shimmerSpeed + phase);
-        Color c = Color.Lerp(socketColor, socketGlow, t * 0.6f);
-        sr.color = c;
-        originalColor = c;
-    }
-
-    public void SetHighlight(Color color) { _highlighted = true; if (sr != null) sr.color = color; }
-    public void ClearHighlight()          { _highlighted = false; if (sr != null) sr.color = originalColor; }
+    public void SetHighlight(Color color) { if (sr != null) sr.color = color; }
+    public void ClearHighlight()          { if (sr != null) sr.color = originalColor; }
 
     static Sprite _squareSprite;
 
