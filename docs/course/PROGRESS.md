@@ -33,7 +33,7 @@
 |---|--------|--------|--------|-----------|
 | 0 | Course-loop infrastructure | `chore/course-loop-infrastructure` | ✅ DONE | — |
 | 1 | C# Events & Observer Pattern | `feature/lesson-01-events-observer` | ✅ DONE | [lesson-01-events.md](changelogs/lesson-01-events.md) |
-| 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | 🔲 TODO | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
+| 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | ✅ DONE | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
 | 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | 🔲 TODO | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
 | 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | 🔲 TODO | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
 | 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | 🔲 TODO | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
@@ -48,10 +48,10 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Lesson 2 — UI Toolkit HUD.** Branch `feature/lesson-02-ui-toolkit-hud`.
-(Lesson 1 ✅ merged to `main`. Lesson 2's new `UIController` should subscribe to
-`GameEvents.ScoreChanged` — the "UIController listens to ScoreChanged" example that
-completes Lesson 1's bus-subscriber story.)
+➡️ **Lesson 3 — Crystal magical shader (URP HLSL).** Branch `feature/lesson-03-crystal-shader`.
+(Lessons 1–2 ✅ merged to `main`. Make a `MagicalCrystal` URP HLSL shader for the
+crystal cells — scrolling procedural noise, ≥4 exposed properties, breathing alpha,
+≥1 extra animated property — plus an Editor script to create the material.)
 
 ---
 
@@ -72,14 +72,14 @@ Part 2 — Safe subscriptions & cleanup
 - [x] Pooled objects unsubscribe on return to pool (`Item.ResetForPool` clears child-event subscribers)
 - [x] AI review for missing unsubscribes (fresh-context reviewer agent; findings in changelog)
 
-### Lesson 2 — UI Toolkit HUD
-- [ ] `GameHUD.uxml` with ≥3 elements (score label, high-score label, a button)
-- [ ] `PanelSettings` asset (Scale With Screen Size) on a `UIDocument` — Editor script + steps
-- [ ] `GameHUD.uss` with a type selector, an `#id` selector, and a `.class` selector, linked to UXML
-- [ ] `UIController.cs` queries via `Q<T>("name")` and updates the label on score change
-- [ ] Button `clicked` wired to a C# method (restart/menu)
-- [ ] AI assistance evidence noted in changelog (prompt + whether output worked)
-- [ ] `.uxml` readable/documented in changelog
+### Lesson 2 — UI Toolkit HUD ✅
+- [x] `GameHUD.uxml` with ≥3 elements (score label, high-score label, a button)
+- [x] `PanelSettings` asset (Scale With Screen Size) on a `UIDocument` — Editor script + steps
+- [x] `GameHUD.uss` with a type selector, an `#id` selector, and a `.class` selector, linked to UXML
+- [x] `UIController.cs` queries via `Q<T>("name")` and updates the label on score change
+- [x] Button `clicked` wired to a C# method (restart/menu)
+- [x] AI assistance evidence noted in changelog (prompt + whether output worked)
+- [x] `.uxml` readable/documented in changelog
 
 ### Lesson 3 — Crystal magical shader (URP HLSL)
 - [ ] Transparent setup: `RenderType=Transparent`, `Queue=Transparent`, `Blend SrcAlpha OneMinusSrcAlpha`, `ZWrite Off`
