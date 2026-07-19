@@ -34,7 +34,7 @@
 | 0 | Course-loop infrastructure | `chore/course-loop-infrastructure` | ✅ DONE | — |
 | 1 | C# Events & Observer Pattern | `feature/lesson-01-events-observer` | ✅ DONE | [lesson-01-events.md](changelogs/lesson-01-events.md) |
 | 2 | UI Toolkit HUD | `feature/lesson-02-ui-toolkit-hud` | ✅ DONE | [lesson-02-ui-toolkit.md](changelogs/lesson-02-ui-toolkit.md) |
-| 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | 🔲 TODO | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
+| 3 | Crystal magical shader (URP HLSL) | `feature/lesson-03-crystal-shader` | ✅ DONE | [lesson-03-crystal-shader.md](changelogs/lesson-03-crystal-shader.md) |
 | 4 | Shader effects (ShaderToy port + runtime controller) | `feature/lesson-04-shader-effects` | 🔲 TODO | [lesson-04-shader-effects.md](changelogs/lesson-04-shader-effects.md) |
 | 8 | Data-driven design & ScriptableObjects | `feature/lesson-08-data-driven` | 🔲 TODO | [lesson-08-data-driven.md](changelogs/lesson-08-data-driven.md) |
 | J | Juice & particles polish (presentation) | `feature/juice-and-particles` | 🔲 TODO | [juice-and-particles.md](changelogs/juice-and-particles.md) |
@@ -48,10 +48,10 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-➡️ **Lesson 3 — Crystal magical shader (URP HLSL).** Branch `feature/lesson-03-crystal-shader`.
-(Lessons 1–2 ✅ merged to `main`. Make a `MagicalCrystal` URP HLSL shader for the
-crystal cells — scrolling procedural noise, ≥4 exposed properties, breathing alpha,
-≥1 extra animated property — plus an Editor script to create the material.)
+➡️ **Lesson 4 — Shader effects (ShaderToy port + runtime controller).** Branch `feature/lesson-04-shader-effects`.
+(Lessons 1–3 ✅ merged to `main`. Port a ShaderToy GLSL effect to URP HLSL (`.shader`),
+add a C# controller that drives a shader property at runtime via `renderer.material`
+with `Destroy(_mat)` in `OnDestroy`, and document Shader Graph build steps + Director Notes.)
 
 ---
 
@@ -81,13 +81,13 @@ Part 2 — Safe subscriptions & cleanup
 - [x] AI assistance evidence noted in changelog (prompt + whether output worked)
 - [x] `.uxml` readable/documented in changelog
 
-### Lesson 3 — Crystal magical shader (URP HLSL)
-- [ ] Transparent setup: `RenderType=Transparent`, `Queue=Transparent`, `Blend SrcAlpha OneMinusSrcAlpha`, `ZWrite Off`
-- [ ] ≥4 exposed Properties (base color, glow color, scroll speed, noise scale)
-- [ ] Procedural HLSL noise function (no texture)
-- [ ] Scrolling UVs (`_Time.y * _ScrollSpeed` on Y) → noise → `lerp`/`smoothstep` color blend
-- [ ] Dynamic alpha (breathing) + ≥1 extra animated property (crystal-appropriate)
-- [ ] Material Editor script + assignment steps (crystal cells, not a water plane)
+### Lesson 3 — Crystal magical shader (URP HLSL) ✅
+- [x] Transparent setup: `RenderType=Transparent`, `Queue=Transparent`, `Blend SrcAlpha OneMinusSrcAlpha`, `ZWrite Off`
+- [x] ≥4 exposed Properties (base color, glow color, scroll speed, noise scale)
+- [x] Procedural HLSL noise function (no texture)
+- [x] Scrolling UVs (`_Time.y * _ScrollSpeed` on Y) → noise → `lerp`/`smoothstep` color blend
+- [x] Dynamic alpha (breathing) + ≥1 extra animated property (crystal-appropriate)
+- [x] Material Editor script + assignment steps (crystal cells, not a water plane)
 
 ### Lesson 4 — Shader effects
 - [ ] Shader Graph effect (noise + Time → Alpha/Base Color) — **needs Editor**; documented build steps
