@@ -53,6 +53,7 @@ Shader "Merge3/MagicalCrystal"
         Pass
         {
             Name "CrystalForward"
+            Tags { "LightMode" = "SRPDefaultUnlit" }
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag

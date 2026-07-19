@@ -25,17 +25,17 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _AlphaBase: 0.7
-    - _AlphaBreathe: 0.25
+    - _AlphaBase: 0.85
+    - _AlphaBreathe: 0.2
     - _NoiseScale: 5
     - _PulseSpeed: 2
-    - _PulseStrength: 0.15
+    - _PulseStrength: 0.2
     - _RippleSpeed: 1.5
     - _RippleStrength: 0.03
-    - _ScrollSpeed: 0.35
-    - _VignetteStrength: 0.6
+    - _ScrollSpeed: 0.4
+    - _VignetteStrength: 0.35
     m_Colors:
-    - _BaseColor: {r: 0.12, g: 0.35, b: 0.75, a: 1}
-    - _GlowColor: {r: 0.55, g: 0.95, b: 1, a: 1}
+    - _BaseColor: {r: 0.16, g: 0.42, b: 0.9, a: 1}
+    - _GlowColor: {r: 0.55, g: 0.9, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
