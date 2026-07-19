@@ -48,11 +48,22 @@ Status legend: `🔲 TODO` · `🚧 IN PROGRESS` · `✅ DONE` · `⏸ BLOCKED (
 
 ## NEXT ACTION
 
-✅ **ALL DONE.** Lessons 1, 2, 3, 4, 8 and the juice/particles pass are implemented and
-merged to `main`. The only remaining work is the **one Editor pass** the headless run
-couldn't do: open the project in Unity to generate `.meta` files + compile, then run the
-documented menu items (`Tools ▸ Merge3 ▸ …`) per each lesson's changelog "Editor steps",
-and commit the generated `.meta`/asset files.
+✅ **ALL DONE — including the in-Editor pass.** Lessons 1–4, 8 and the juice pass are
+implemented and merged to `main`, and the Unity Editor wiring was completed live via the
+MCP (local mode) and committed (`chore/unity-editor-pass`):
+- All `.meta` files generated; project compiles with **no errors**.
+- Lesson 8: 8 `GemDefinition` assets + `GemDatabase.asset` generated from JSON; validator
+  reported **VALID**.
+- Lesson 3: `MagicalCrystal.mat` applied to the Cell prefab.
+- Lesson 4: `CrystalAura.mat` + background aura quad + controller.
+- Lesson 2: `GameHUDPanelSettings` + `UIDocument`/`UIController` wired into `mainGame.unity`
+  — **confirmed rendering in Play mode** (the corner crystal HUD).
+- Juice: `JuiceDirector` on the GridManager object.
+
+MCP connection recipe (for future sessions): the plugin must be in **Local mode**
+(serves `localhost:24259`, no cloud auth); run all `unity-mcp-cli` calls under **Node ≥20.19**
+(winget-installed Node 24 lives at `%LOCALAPPDATA%\Microsoft\WinGet\Packages\OpenJS.NodeJS.LTS_*\node-v24*`).
+Cloud mode was 401 (token rejected for `mcp:agent`); local mode sidesteps it.
 
 Optional future polish (not in the assignment): wire `GemDatabase` into the live spawn
 path; add a UI-Toolkit score punch; per-tile despawn bursts via `Item.OnDespawned`.
