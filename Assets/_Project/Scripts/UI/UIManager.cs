@@ -20,6 +20,9 @@ public class UIManager : MonoBehaviour
     [SerializeField] private LevelManager levelManager;
 
     private Coroutine _bannerRoutine;
+    private int _level = 1;
+    private int _score;
+    private int _target;
 
     // Subscribe in Awake so we never miss the initial OnScoreChanged
     // fired from LevelManager.Start when services are already ready.
@@ -29,6 +32,7 @@ public class UIManager : MonoBehaviour
         {
             levelManager.OnScoreChanged += UpdateScore;
             levelManager.OnLevelComplete += ShowLevelComplete;
+            levelManager.OnLevelChanged += UpdateLevel;
         }
         else
         {
@@ -42,6 +46,7 @@ public class UIManager : MonoBehaviour
         {
             levelManager.OnScoreChanged -= UpdateScore;
             levelManager.OnLevelComplete -= ShowLevelComplete;
+            levelManager.OnLevelChanged -= UpdateLevel;
         }
     }
 
@@ -53,6 +58,14 @@ public class UIManager : MonoBehaviour
             gameOverPanel.SetActive(false);
         if (levelBanner != null)
             levelBanner.gameObject.SetActive(false);
+    }
+
+    // Hide the score/level HUD text while the main menu overlay is up (it would
+    // otherwise sit on top of the title logo); shown again when a run begins.
+    public void SetHudVisible(bool visible)
+    {
+        if (scoreText != null) scoreText.gameObject.SetActive(visible);
+        if (targetText != null) targetText.gameObject.SetActive(visible);
     }
 
     // Brief "Level N" banner shown when a level starts.
@@ -92,11 +105,24 @@ public class UIManager : MonoBehaviour
     // FUTURE: add animated score counter
     public void UpdateScore(int currentScore, int targetScore)
     {
+        _score = currentScore;
+        _target = targetScore;
+        RefreshHud();
+    }
+
+    public void UpdateLevel(int level)
+    {
+        _level = level;
+        RefreshHud();
+    }
+
+    void RefreshHud()
+    {
         if (scoreText != null)
-            scoreText.text = "Score: " + currentScore;
+            scoreText.text = "Score: " + _score;
 
         if (targetText != null)
-            targetText.text = "Target: " + targetScore;
+            targetText.text = "Level " + _level + "   ·   Next: " + _target;
     }
 
     // FUTURE: add star rating, particle burst
@@ -112,10 +138,15 @@ public class UIManager : MonoBehaviour
             levelCompletePanel.SetActive(false);
     }
 
-    public void ShowGameOver()
+    public void ShowGameOver(int score, int levelReached)
     {
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(true);
+        if (gameOverPanel == null) return;
+
+        var text = gameOverPanel.transform.Find("GameOverText")?.GetComponent<TextMeshProUGUI>();
+        if (text != null)
+            text.text = "Game Over\n\nScore  " + score + "\nReached  Level " + levelReached;
+
+        gameOverPanel.SetActive(true);
     }
 
     public void HideGameOver()
