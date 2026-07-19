@@ -68,6 +68,12 @@ Cloud mode was 401 (token rejected for `mcp:agent`); local mode sidesteps it.
 Optional future polish (not in the assignment): wire `GemDatabase` into the live spawn
 path; add a UI-Toolkit score punch; per-tile despawn bursts via `Item.OnDespawned`.
 
+### Post-course tweaks (user-requested)
+- **Pre-baked level buttons** (`5d82469`): the menu's level buttons are now real objects
+  in `mainGame.unity` (`Level1Button`…`Level5Button` under `MenuPanel`), so they exist in
+  the Editor before Play. Template renamed `LevelButtonTemplate`; `MenuController` reuses
+  the baked buttons and only clones for levels that lack one.
+
 ---
 
 ## Per-lesson checklists
