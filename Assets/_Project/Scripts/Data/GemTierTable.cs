@@ -19,7 +19,7 @@ public static class GemTierTable
     // Ordered tier 1 -> 10. Names are flavor; the item label shows the level number.
     static readonly string[] Names =
     {
-        "Obsidian", "Ruby", "Emerald", "Sapphire", "Citrine",
+        "Obsidian", "Ruby", "Emerald", "Lapis", "Citrine",
         "Amethyst", "Turquoise", "Carnelian", "Rhodochrosite", "Diamond",
     };
 
