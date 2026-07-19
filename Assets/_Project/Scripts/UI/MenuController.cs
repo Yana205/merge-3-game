@@ -148,9 +148,11 @@ public class MenuController : MonoBehaviour
             bool unlocked = _progressManager == null || _progressManager.IsUnlocked(i);
             button.interactable = unlocked;
 
+            // Keep the label short so it never overflows the button; the locked
+            // state reads from the button's disabled tint, not appended text.
             var label = button.GetComponentInChildren<TMPro.TMP_Text>(true);
             if (label != null)
-                label.text = unlocked ? "Level " + (i + 1) : "Level " + (i + 1) + " — Locked";
+                label.text = "Level " + (i + 1);
 
             var bestScoreLabel = button.transform.Find("BestScoreLabel")?.GetComponent<TMPro.TMP_Text>();
             if (bestScoreLabel != null)
