@@ -21,10 +21,10 @@ public class LeaderboardUI : MonoBehaviour
     [SerializeField] private LevelManager _levelManager;
     [SerializeField] private ProgressManager _progressManager;
 
-    // Anchor band the generated rows are stacked in, one per row.
+    // Anchor band the generated rows are stacked in, one per row (fits 10).
     private const float BandTop = 0.80f;
-    private const float RowHeight = 0.07f;
-    private const float RowGap = 0.01f;
+    private const float RowHeight = 0.062f;
+    private const float RowGap = 0.008f;
 
     private readonly List<RectTransform> _rows = new();
 
@@ -37,9 +37,9 @@ public class LeaderboardUI : MonoBehaviour
 
     public void Show()
     {
-        if (_panel == null || _rowTemplate == null || _levelManager == null)
+        if (_panel == null || _rowTemplate == null)
         {
-            Debug.LogError("LeaderboardUI: panel, row template or LevelManager reference is missing.");
+            Debug.LogError("LeaderboardUI: panel or row template reference is missing.");
             return;
         }
 
@@ -58,8 +58,23 @@ public class LeaderboardUI : MonoBehaviour
             if (row != null) Destroy(row.gameObject);
         _rows.Clear();
 
-        int count = _levelManager.levels != null ? _levelManager.levels.Length : 0;
-        for (int i = 0; i < count; i++)
+        var runs = _progressManager != null
+            ? _progressManager.GetTopRuns()
+            : new System.Collections.Generic.List<RunEntry>();
+
+        if (runs.Count == 0)
+        {
+            RectTransform empty = Instantiate(_rowTemplate, _rowTemplate.parent);
+            empty.name = "LeaderboardRowEmpty";
+            empty.gameObject.SetActive(true);
+            PositionRow(empty, 0);
+            var lbl = empty.GetComponent<TMPro.TMP_Text>();
+            if (lbl != null) lbl.text = "No runs yet — press Play!";
+            _rows.Add(empty);
+            return;
+        }
+
+        for (int i = 0; i < runs.Count; i++)
         {
             RectTransform row = Instantiate(_rowTemplate, _rowTemplate.parent);
             row.name = "LeaderboardRow" + (i + 1);
@@ -67,24 +82,16 @@ public class LeaderboardUI : MonoBehaviour
             PositionRow(row, i);
 
             var label = row.GetComponent<TMPro.TMP_Text>();
-            if (label != null) label.text = BuildRowText(i);
+            if (label != null) label.text = BuildRowText(i, runs[i]);
 
             _rows.Add(row);
         }
     }
 
-    string BuildRowText(int levelIndex)
+    // "1.   Score 1240      Level 7"
+    string BuildRowText(int rank, RunEntry run)
     {
-        string levelName = "Level " + (levelIndex + 1);
-
-        bool unlocked = _progressManager == null || _progressManager.IsUnlocked(levelIndex);
-        if (!unlocked)
-            return levelName + " — Locked";
-
-        bool completed = _progressManager != null && _progressManager.IsCompleted(levelIndex);
-        return completed
-            ? levelName + " — Best: " + _progressManager.GetBestScore(levelIndex)
-            : levelName + " — Not completed";
+        return string.Format("{0,2}.   Score {1,-6}   Level {2}", rank + 1, run.score, run.level);
     }
 
     void PositionRow(RectTransform row, int index)

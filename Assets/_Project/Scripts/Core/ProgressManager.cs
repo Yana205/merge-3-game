@@ -1,7 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ProgressManager : MonoBehaviour
 {
+    public const int MaxLeaderboardEntries = 10;
+
     private ISaveSystem _saveSystem;
     private GameProgress _progress = new GameProgress();
 
@@ -9,6 +12,41 @@ public class ProgressManager : MonoBehaviour
     {
         _saveSystem = saveSystem;
         RestoreProgress();
+    }
+
+    // --- Endless mode leaderboard --------------------------------------------
+
+    /// <summary>
+    /// Record a finished run, keeping only the top <see cref="MaxLeaderboardEntries"/>
+    /// by score. Ties break toward the higher level reached.
+    /// </summary>
+    public void RecordRun(int score, int level)
+    {
+        var runs = new List<RunEntry>(_progress.topRuns ?? new RunEntry[0]);
+        runs.Add(new RunEntry { score = score, level = level });
+        runs.Sort((a, b) => a.score != b.score
+            ? b.score.CompareTo(a.score)
+            : b.level.CompareTo(a.level));
+        if (runs.Count > MaxLeaderboardEntries)
+            runs.RemoveRange(MaxLeaderboardEntries, runs.Count - MaxLeaderboardEntries);
+
+        _progress.topRuns = runs.ToArray();
+        _saveSystem?.Save(_progress);
+    }
+
+    public IReadOnlyList<RunEntry> GetTopRuns()
+    {
+        return _progress.topRuns ?? new RunEntry[0];
+    }
+
+    /// <summary>Best run score so far (0 when no runs recorded), for menu/HUD.</summary>
+    public int GetBestScore()
+    {
+        int best = 0;
+        if (_progress.topRuns != null)
+            foreach (RunEntry r in _progress.topRuns)
+                if (r.score > best) best = r.score;
+        return best;
     }
 
     public bool IsUnlocked(int levelIndex)

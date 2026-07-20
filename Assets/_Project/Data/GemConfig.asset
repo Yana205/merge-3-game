@@ -15,101 +15,51 @@ MonoBehaviour:
   tiers:
   - gemName: Obsidian
     hardness: 1
-    tintColor: {r: 0.17254902, g: 0.24313726, b: 0.3137255, a: 1}
+    tintColor: {r: 0.169, g: 0.169, b: 0.2, a: 1}
     sprite: {fileID: 21300000, guid: 00e9d8163f5e847ad802b0f13e158220, type: 3}
     scoreValue: 10
-  - gemName: Hematite
-    hardness: 2
-    tintColor: {r: 0.49803922, g: 0.54901963, b: 0.5529412, a: 1}
-    sprite: {fileID: 21300000, guid: 67b2abb91941d42c9ba045b106e0d56b, type: 3}
-    scoreValue: 20
-  - gemName: Garnet
-    hardness: 3
-    tintColor: {r: 0.7529412, g: 0.22352941, b: 0.16862746, a: 1}
-    sprite: {fileID: 21300000, guid: 3efcb811591b64719ba32d704a4de053, type: 3}
-    scoreValue: 30
-  - gemName: Carnelian
-    hardness: 4
-    tintColor: {r: 0.9019608, g: 0.49411765, b: 0.13333334, a: 1}
-    sprite: {fileID: 21300000, guid: 59ced33ae60dc4507b84a34559d3f5b4, type: 3}
-    scoreValue: 40
-  - gemName: Amber
-    hardness: 5
-    tintColor: {r: 0.9607843, g: 0.6901961, b: 0.25490198, a: 1}
-    sprite: {fileID: 21300000, guid: c7ffa15c3cb2b4375a9082602608f099, type: 3}
-    scoreValue: 50
-  - gemName: Citrine
-    hardness: 6
-    tintColor: {r: 0.96862745, g: 0.8627451, b: 0.43529412, a: 1}
-    sprite: {fileID: 21300000, guid: 42c4729d8afed4a528e36d16bd2d8fb7, type: 3}
-    scoreValue: 60
-  - gemName: Peridot
-    hardness: 7
-    tintColor: {r: 0.6627451, g: 0.8745098, b: 0.7490196, a: 1}
-    sprite: {fileID: 21300000, guid: 8ae14e7fbc53e410ebc95ee19472478d, type: 3}
-    scoreValue: 70
-  - gemName: Emerald
-    hardness: 8
-    tintColor: {r: 0.13333334, g: 0.6, b: 0.32941177, a: 1}
-    sprite: {fileID: 21300000, guid: 56183ee2e04d14ef7be19e0a10aace42, type: 3}
-    scoreValue: 80
-  - gemName: Malachite
-    hardness: 9
-    tintColor: {r: 0.09019608, g: 0.64705884, b: 0.5372549, a: 1}
-    sprite: {fileID: 21300000, guid: 2b9e69f9f6db54f4c9656416b250743e, type: 3}
-    scoreValue: 90
-  - gemName: Aquamarine
-    hardness: 10
-    tintColor: {r: 0.28235295, g: 0.7882353, b: 0.6901961, a: 1}
-    sprite: {fileID: 21300000, guid: aa8771df7fa2b4a4080333ae6d108515, type: 3}
-    scoreValue: 100
-  - gemName: Turquoise
-    hardness: 11
-    tintColor: {r: 0.3647059, g: 0.6784314, b: 0.8862745, a: 1}
-    sprite: {fileID: 21300000, guid: 90943dde180504663a04e4c4ac297280, type: 3}
-    scoreValue: 110
-  - gemName: Sapphire
-    hardness: 12
-    tintColor: {r: 0.18039216, g: 0.5254902, b: 0.75686276, a: 1}
-    sprite: {fileID: 21300000, guid: 3d11afe1108f048fbb553c6ee1d5cdea, type: 3}
-    scoreValue: 120
-  - gemName: Lapis
-    hardness: 13
-    tintColor: {r: 0.12156863, g: 0.22745098, b: 0.5764706, a: 1}
-    sprite: {fileID: 21300000, guid: b2dd6587632424377808d66572f77d48, type: 3}
-    scoreValue: 130
-  - gemName: Amethyst
-    hardness: 14
-    tintColor: {r: 0.5568628, g: 0.26666668, b: 0.6784314, a: 1}
-    sprite: {fileID: 21300000, guid: 60b8b0616d25a437f91ed95a1ffcc568, type: 3}
-    scoreValue: 140
-  - gemName: Sugilite
-    hardness: 15
-    tintColor: {r: 0.42352942, g: 0.20392157, b: 0.5137255, a: 1}
-    sprite: {fileID: 21300000, guid: dcfbcd3f685fb4412954a253f345ffaa, type: 3}
-    scoreValue: 150
-  - gemName: Rhodochrosite
-    hardness: 16
-    tintColor: {r: 0.9098039, g: 0.2627451, b: 0.5764706, a: 1}
-    sprite: {fileID: 21300000, guid: 2d54bc786abce4da99ea465856ad7387, type: 3}
-    scoreValue: 160
-  - gemName: Rose Quartz
-    hardness: 17
-    tintColor: {r: 0.9607843, g: 0.7176471, b: 0.80784315, a: 1}
-    sprite: {fileID: 21300000, guid: 4d6ad991947cb4f798bdd68a9c56f8df, type: 3}
-    scoreValue: 170
   - gemName: Ruby
-    hardness: 18
-    tintColor: {r: 0.90588236, g: 0.29803923, b: 0.23529412, a: 1}
+    hardness: 2
+    tintColor: {r: 0.906, g: 0.149, b: 0.235, a: 1}
     sprite: {fileID: 21300000, guid: c09756db9c0c94fc5a4671c7c619b89e, type: 3}
-    scoreValue: 180
+    scoreValue: 20
+  - gemName: Emerald
+    hardness: 3
+    tintColor: {r: 0.086, g: 0.761, b: 0.353, a: 1}
+    sprite: {fileID: 21300000, guid: 56183ee2e04d14ef7be19e0a10aace42, type: 3}
+    scoreValue: 30
+  - gemName: Lapis
+    hardness: 4
+    tintColor: {r: 0.17, g: 0.36, b: 0.78, a: 1}
+    sprite: {fileID: 21300000, guid: b2dd6587632424377808d66572f77d48, type: 3}
+    scoreValue: 40
+  - gemName: Citrine
+    hardness: 5
+    tintColor: {r: 1, g: 0.773, b: 0.192, a: 1}
+    sprite: {fileID: 21300000, guid: 42c4729d8afed4a528e36d16bd2d8fb7, type: 3}
+    scoreValue: 50
+  - gemName: Amethyst
+    hardness: 6
+    tintColor: {r: 0.608, g: 0.235, b: 0.878, a: 1}
+    sprite: {fileID: 21300000, guid: 60b8b0616d25a437f91ed95a1ffcc568, type: 3}
+    scoreValue: 60
+  - gemName: Turquoise
+    hardness: 7
+    tintColor: {r: 0.09, g: 0.851, b: 0.816, a: 1}
+    sprite: {fileID: 21300000, guid: 90943dde180504663a04e4c4ac297280, type: 3}
+    scoreValue: 70
+  - gemName: Carnelian
+    hardness: 8
+    tintColor: {r: 1, g: 0.416, b: 0.102, a: 1}
+    sprite: {fileID: 21300000, guid: 59ced33ae60dc4507b84a34559d3f5b4, type: 3}
+    scoreValue: 80
+  - gemName: Rhodochrosite
+    hardness: 9
+    tintColor: {r: 1, g: 0.239, b: 0.682, a: 1}
+    sprite: {fileID: 21300000, guid: 2d54bc786abce4da99ea465856ad7387, type: 3}
+    scoreValue: 90
   - gemName: Diamond
-    hardness: 19
-    tintColor: {r: 0.99215686, g: 0.99607843, b: 0.99607843, a: 1}
+    hardness: 10
+    tintColor: {r: 0.918, g: 0.965, b: 1, a: 1}
     sprite: {fileID: 21300000, guid: 16936eb21ff154ec094aade7416313e6, type: 3}
-    scoreValue: 190
-  - gemName: Star Gem
-    hardness: 20
-    tintColor: {r: 1, g: 0.84313726, b: 0, a: 1}
-    sprite: {fileID: 21300000, guid: 2863851971f8a4b03b6e0102783d4233, type: 3}
-    scoreValue: 200
+    scoreValue: 100

@@ -84,7 +84,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 0}
-  m_Color: {r: 0.15, g: 0.15, b: 0.15, a: 1}
+  m_Color: {r: 0.16, g: 0.22, b: 0.46, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -153,3 +153,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Cell
   row: 0
   col: 0
+  socketColor: {r: 0.16, g: 0.22, b: 0.46, a: 1}
+  socketGlow: {r: 0.34, g: 0.55, b: 0.95, a: 1}
+  shimmerSpeed: 1.6

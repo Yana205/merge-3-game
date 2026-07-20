@@ -20,11 +20,16 @@ public class Cell : MonoBehaviour
     {
         sr = GetComponent<SpriteRenderer>();
         if (sr != null && sr.sprite == null)
-        {
             sr.sprite = CreateSquareSprite();
-            sr.color = new Color(0.15f, 0.15f, 0.15f);
+
+        // The cell stays white so the animated MagicalCrystal shader shows its
+        // own colours; the sprite is just an alpha mask. SetHighlight tints the
+        // crystal for drag feedback, ClearHighlight restores it.
+        if (sr != null)
+        {
+            sr.color = Color.white;
+            originalColor = Color.white;
         }
-        if (sr != null) originalColor = sr.color;
     }
 
     public void SetHighlight(Color color) { if (sr != null) sr.color = color; }
