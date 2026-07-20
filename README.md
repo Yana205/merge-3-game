@@ -3,7 +3,7 @@
 A merge-3 puzzle game built with Unity 6, Unity MCP and claude code. Made assets directly to the game using claude. Full skills structure and automatic workflow of asset and mechanic agents.
 
 current
-<img width="800" height="395" alt="realdemo-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/1fa86576-5cb1-4d21-b238-472385f34f80" />
+<img width="800" height="395" alt="realdemo-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/2fc4f0bb-0c7b-4011-8176-7c435a5cb06d" />
 
 before
 <img width="800" height="395" alt="realdemo-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/1fa86576-5cb1-4d21-b238-472385f34f80" />
