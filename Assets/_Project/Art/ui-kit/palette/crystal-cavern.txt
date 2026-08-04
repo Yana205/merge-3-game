@@ -1,0 +1,26 @@
+#1B1235  outline          Every 1px sprite outline; deepest shadow. Never pure black.
+#0F0A20  void             Letterbox, page background, behind everything.
+#150D28  drop shadow      Hard offset shadow under panels and buttons.
+#2E1F53  night violet     Panel inner shadow ring, recessed edges.
+#241A42  panel fill       Window and button interior.
+#3A2D63  neutral mid      Dividers, inactive fills.
+#4B3A82  dusk purple      Panel and button frame; selected button fill.
+#5A4A8C  neutral light    Recessive labels only. Do not use for body copy.
+#6B54A8  frame highlight  1px top/left bevel inside frames.
+#8F6FC9  muted text       Secondary UI copy; violet bounce light on sprites.
+#C77DFF  magenta glow     Crystal core, arcane energy.
+#E0AEFF  glow highlight   Hottest point of a core; energy numerals.
+#142A33  crystal 0        Darkest crystal facet.
+#1E4550  crystal 1        Pavilion shadow facets.
+#2E6B70  crystal 2        Body base value.
+#3F9A98  crystal 3        Mid facet, lower-tier tables.
+#6EE6E0  crystal cyan     KEY. Selected-state frame, primary accent.
+#A5F2EC  crystal 5        Lit crown facets; button label text.
+#CFF8F2  pale mint        Table face; primary UI text.
+#EFFFFC  specular         Glints and the upper-left rim only. Use sparingly.
+#5C3A12  gold 0           Gold underside shadow.
+#8A5A1C  gold 1           Gold shadow face.
+#B8862B  gold 2           Gold mid.
+#F5C542  gold key         KEY. Score numerals, cursor, rules, finials.
+#FFE08A  gold 4           Gold lit face; currency numerals.
+#FFF6D0  gold specular    Single-pixel gold glints.

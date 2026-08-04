@@ -1,0 +1,30 @@
+GIMP Palette
+Name: Crystal Cavern
+Columns: 6
+#
+ 27  18  53	1B1235 outline
+ 15  10  32	0F0A20 void
+ 21  13  40	150D28 drop shadow
+ 46  31  83	2E1F53 night violet
+ 36  26  66	241A42 panel fill
+ 58  45  99	3A2D63 neutral mid
+ 75  58 130	4B3A82 dusk purple
+ 90  74 140	5A4A8C neutral light
+107  84 168	6B54A8 frame highlight
+143 111 201	8F6FC9 muted text
+199 125 255	C77DFF magenta glow
+224 174 255	E0AEFF glow highlight
+ 20  42  51	142A33 crystal 0
+ 30  69  80	1E4550 crystal 1
+ 46 107 112	2E6B70 crystal 2
+ 63 154 152	3F9A98 crystal 3
+110 230 224	6EE6E0 crystal cyan
+165 242 236	A5F2EC crystal 5
+207 248 242	CFF8F2 pale mint
+239 255 252	EFFFFC specular
+ 92  58  18	5C3A12 gold 0
+138  90  28	8A5A1C gold 1
+184 134  43	B8862B gold 2
+245 197  66	F5C542 gold key
+255 224 138	FFE08A gold 4
+255 246 208	FFF6D0 gold specular
