@@ -1,0 +1,5 @@
+[mcp_servers.ai-game-developer]
+url = "https://ai-game.dev/mcp"
+
+[mcp_servers.ai-game-developer.http_headers]
+Authorization = "Bearer Yjl_elfEaZsgyAMiBp6McnhcNEJYs6Vo94KUXBTa2lw"
