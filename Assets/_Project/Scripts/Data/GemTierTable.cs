@@ -1,33 +1,37 @@
 using UnityEngine;
 
 /// <summary>
-/// Built-in 10-step gem tier ladder ("the merge cell table"), used when no
+/// Built-in 7-step gem tier ladder ("the merge cell table"), used when no
 /// GemConfig asset is assigned on the Item prefab. Each tier gets a distinct
 /// color and name so the merge progression is readable in-game with no art.
 ///
-/// Trimmed from 20 near-duplicate hues to 10 maximally-separated ones: every
-/// merge jumps far around the colour wheel (dark -> red -> green -> blue ->
-/// yellow -> purple -> cyan -> orange -> pink -> white), so a fresh merge is
-/// always an obvious colour change rather than a subtle shade shift.
+/// Kept in lockstep with the GemConfig ladder: 7 entries, one per shape stage
+/// in the gem-chain-alpha art set, using that set's per-tier stone colours.
+/// Item.MaxTier falls back to Count here, so this length IS the max mergeable
+/// level whenever the config is missing — the two must not drift apart.
 ///
-/// To use real gem sprites later: create a GemConfig asset, fill its tiers with
-/// the sliced gem sprites, and assign it to the Item prefab. GemConfig then
-/// overrides this table automatically.
+/// Every merge still jumps far around the colour wheel (slate -> red -> green
+/// -> blue -> gold -> magenta -> white), so a fresh merge is always an obvious
+/// colour change rather than a subtle shade shift.
+///
+/// To use real gem sprites: create a GemConfig asset, fill its tiers with the
+/// gem sprites, and assign it to the Item prefab. GemConfig then overrides this
+/// table automatically.
 /// </summary>
 public static class GemTierTable
 {
-    // Ordered tier 1 -> 10. Names are flavor; the item label shows the level number.
+    // Ordered tier 1 -> 7. Names are flavor; the item label shows the level number.
     static readonly string[] Names =
     {
-        "Obsidian", "Ruby", "Emerald", "Lapis", "Citrine",
-        "Amethyst", "Turquoise", "Carnelian", "Rhodochrosite", "Diamond",
+        "Obsidian", "Ruby", "Emerald", "Sapphire",
+        "Citrine", "Rhodochrosite", "Diamond",
     };
 
-    // Maximally-separated hues so every consecutive tier is an obvious jump.
+    // Maximally-separated hues, matching the stone colour of each tier's sprite.
     static readonly Color[] Colors =
     {
-        Hex(0x2B2B33), Hex(0xE7263C), Hex(0x16C25A), Hex(0x2E6BFF), Hex(0xFFC531),
-        Hex(0x9B3CE0), Hex(0x17D9D0), Hex(0xFF6A1A), Hex(0xFF3DAE), Hex(0xEAF6FF),
+        Hex(0x949FB3), Hex(0xD9455A), Hex(0x62E691), Hex(0x58ACE6),
+        Hex(0xE6B84E), Hex(0xE660BF), Hex(0xDCEAF0),
     };
 
     /// <summary>Number of tiers in the ladder (also the max mergeable level).</summary>
