@@ -33,6 +33,9 @@ public static class GameEvents
     /// <summary>Raised when the player asks for a fresh run (the HUD's RESTART).</summary>
     public static event Action RestartRequested;
 
+    /// <summary>Raised when the best recorded score changes. Arg: the new best.</summary>
+    public static event Action<int> BestScoreChanged;
+
     // ---- Raisers -----------------------------------------------------------
     // Publishers call these instead of touching the events directly, so the
     // "?.Invoke() everywhere" rule lives in exactly one place.
@@ -44,6 +47,8 @@ public static class GameEvents
     public static void RaiseSaveRequested() => SaveRequested?.Invoke();
 
     public static void RaiseRestartRequested() => RestartRequested?.Invoke();
+
+    public static void RaiseBestScoreChanged(int best) => BestScoreChanged?.Invoke(best);
 
     /// <summary>
     /// Static events keep their subscriber lists across Editor play sessions when
@@ -58,5 +63,6 @@ public static class GameEvents
         TileMerged = null;
         SaveRequested = null;
         RestartRequested = null;
+        BestScoreChanged = null;
     }
 }

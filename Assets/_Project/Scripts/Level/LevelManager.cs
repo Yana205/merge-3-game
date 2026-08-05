@@ -166,6 +166,8 @@ public class LevelManager : MonoBehaviour
             progressManager?.RecordRun(score);
         }
 
+        GameEvents.RaiseBestScoreChanged(BestScore);
+
         if (uiManager != null)
             uiManager.ShowGameOver(score, BestScore);
     }
@@ -188,11 +190,16 @@ public class LevelManager : MonoBehaviour
 
         _runActive = true;
 
+        // Open this run's leaderboard row before any score arrives, so the reset
+        // below cannot grow the previous run's entry.
+        progressManager?.BeginRun();
+
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
         _localScore = 0;
 
         BuildStartingBoard();
         OnScoreChanged?.Invoke(CurrentScore, BestScore);
+        GameEvents.RaiseBestScoreChanged(BestScore);
 
         if (uiManager != null)
             uiManager.HideGameOver();
@@ -283,7 +290,14 @@ public class LevelManager : MonoBehaviour
     {
         if (!_runActive) return;
 
+        // Keep this run's leaderboard row current on every change rather than
+        // waiting for game over — otherwise refreshing the page mid-run loses the
+        // run entirely, which is exactly how a saved best could sit above an
+        // empty leaderboard.
+        progressManager?.SubmitRunScore(total);
+
         OnScoreChanged?.Invoke(total, BestScore);
+        GameEvents.RaiseBestScoreChanged(BestScore);
     }
 
     // Manual scoring seam (bonuses, tests). Routes through ScoreController so the

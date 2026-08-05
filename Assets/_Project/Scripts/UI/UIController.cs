@@ -13,15 +13,10 @@ using UnityEngine.UIElements;
 [RequireComponent(typeof(UIDocument))]
 public class UIController : MonoBehaviour
 {
-    [Tooltip("PlayerPrefs key the best score is persisted under.")]
-    [SerializeField] private string highScoreKey = "Merge3_HighScore";
-
     private UIDocument _document;
     private Label _scoreLabel;
     private Label _highScoreLabel;
     private Button _restartButton;
-
-    private int _highScore;
 
     // Query + subscribe in OnEnable; UIDocument builds rootVisualElement in its own
     // OnEnable, so keep this component on the same GameObject (its UIDocument runs
@@ -44,35 +39,34 @@ public class UIController : MonoBehaviour
         if (_scoreLabel == null || _highScoreLabel == null || _restartButton == null)
             Debug.LogError("UIController: one or more HUD elements not found — check the name= attributes in GameHUD.uxml.");
 
-        _highScore = PlayerPrefs.GetInt(highScoreKey, 0);
         SetScore(0);
-        SetHighScore(_highScore);
+        // Best arrives over the bus. It used to be tracked here in its own
+        // PlayerPrefs key, separate from the leaderboard's store — two records of
+        // the same number that could disagree. ProgressManager owns it now.
+        SetHighScore(0);
 
         if (_restartButton != null)
             _restartButton.clicked += OnRestartClicked;
 
         GameEvents.ScoreChanged += OnScoreChanged;
+        GameEvents.BestScoreChanged += SetHighScore;
     }
 
     void OnDisable()
     {
         GameEvents.ScoreChanged -= OnScoreChanged;
+        GameEvents.BestScoreChanged -= SetHighScore;
 
         if (_restartButton != null)
             _restartButton.clicked -= OnRestartClicked;
     }
 
-    // Bus handler — the score changed somewhere; reflect it and track the best.
+    // Bus handler — the score changed somewhere; reflect it. Working out whether
+    // that beat the record is ProgressManager's job, and it says so via
+    // BestScoreChanged.
     private void OnScoreChanged(int total)
     {
         SetScore(total);
-
-        if (total > _highScore)
-        {
-            _highScore = total;
-            PlayerPrefs.SetInt(highScoreKey, _highScore);
-            SetHighScore(_highScore);
-        }
     }
 
     // The UXML carries the SCORE / BEST captions in their own elements,
