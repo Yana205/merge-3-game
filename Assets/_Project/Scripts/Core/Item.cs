@@ -11,9 +11,29 @@ public class Item : MonoBehaviour
     private static GemConfig _sharedConfig;
     public static int MaxTier => _sharedConfig != null ? _sharedConfig.MaxTier : GemTierTable.Count;
 
+    /// <summary>
+    /// Top of the ladder for one family. Each family has its own ceiling — the red
+    /// chain is deliberately shorter than the standard one — so every merge and
+    /// jam check must ask per family rather than reading <see cref="MaxTier"/>.
+    /// Returns 0 for a family with no tiers configured, which disables it.
+    /// </summary>
+    public static int MaxTierFor(GemFamily family)
+    {
+        if (_sharedConfig != null) return _sharedConfig.MaxTierFor(family);
+
+        // No config loaded yet: only the built-in standard ladder exists.
+        return family == GemFamily.Standard ? GemTierTable.Count : 0;
+    }
+
     static Sprite _whiteSquare;
 
     public int Tier { get; private set; }
+
+    /// <summary>Which merge chain this gem belongs to. Together with
+    /// <see cref="Tier"/> it forms the gem's full identity — both must match for
+    /// two gems to merge.</summary>
+    public GemFamily Family { get; private set; }
+
     public GemTierData GemData { get; private set; }
 
     // Direct (parent -> child) event: raised when this Item is about to return to
@@ -29,20 +49,27 @@ public class Item : MonoBehaviour
             spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
-    public void Setup(int tier)
+    public void Setup(int tier, GemFamily family = GemFamily.Standard)
     {
         Tier = tier;
+        Family = family;
 
         if (gemConfig != null)
         {
             _sharedConfig = gemConfig;
-            GemData = gemConfig.GetTier(tier);
+            GemData = gemConfig.GetTier(tier, family);
+        }
 
+        if (gemConfig != null && GemData != null)
+        {
             // Tier is read from the artwork alone: each tier has its own colour
             // AND its own silhouette, so the crystals carry no number overlay.
-            if (GemData.sprite != null)
+            // PickSprite rolls the cosmetic variant (the gold-tear crystals) — a
+            // look only, never an identity, so nothing else on the item changes.
+            Sprite look = GemData.PickSprite();
+            if (look != null)
             {
-                spriteRenderer.sprite = GemData.sprite;
+                spriteRenderer.sprite = look;
                 spriteRenderer.color = Color.white;
             }
             else
@@ -53,8 +80,9 @@ public class Item : MonoBehaviour
         }
         else
         {
-            // No GemConfig assigned — fall back to the built-in tier ladder so the
-            // merge progression stays readable (distinct colour per tier).
+            // No GemConfig assigned, or this family's ladder is unwired — fall back
+            // to the built-in tier ladder so the merge progression stays readable
+            // (distinct colour per tier).
             spriteRenderer.sprite = GetWhiteSquare();
             spriteRenderer.color = GemTierTable.ColorFor(tier);
         }
@@ -72,6 +100,7 @@ public class Item : MonoBehaviour
         OnDespawned?.Invoke(this);
 
         Tier = 0;
+        Family = GemFamily.Standard;
         GemData = null;
 
         if (spriteRenderer != null)

@@ -130,7 +130,7 @@ public class GridManager : MonoBehaviour
         _itemFactory = factory;
     }
 
-    public Item SpawnItem(Cell cell, int tier = 1)
+    public Item SpawnItem(Cell cell, int tier = 1, GemFamily family = GemFamily.Standard)
     {
         if (cell == null || cell.IsOccupied())
             return null;
@@ -163,7 +163,7 @@ public class GridManager : MonoBehaviour
         if (item == null)
             return null;
 
-        item.Setup(tier);
+        item.Setup(tier, family);
 
         // Parent subscribes to the child's direct event via += — the Observer
         // pattern for an owner that holds the child instance. Item.ResetForPool
@@ -234,6 +234,9 @@ public class GridManager : MonoBehaviour
         return emptyCells[Random.Range(0, emptyCells.Count)];
     }
 
+    // The jam check. It MUST compare family alongside tier: a full board of red 3s
+    // sitting beside standard 3s has no legal move, and a tier-only check would
+    // call it playable — the run would hang instead of ending.
     public bool HasAnyValidMerge()
     {
         if (grid == null) return false;
@@ -246,7 +249,8 @@ public class GridManager : MonoBehaviour
                 if (cell == null || !cell.IsOccupied()) continue;
 
                 int tier = cell.CurrentItem.Tier;
-                if (tier >= Item.MaxTier) continue;
+                GemFamily family = cell.CurrentItem.Family;
+                if (tier >= Item.MaxTierFor(family)) continue;
 
                 for (int dr = -1; dr <= 1; dr++)
                 {
@@ -255,7 +259,8 @@ public class GridManager : MonoBehaviour
                         if (dr == 0 && dc == 0) continue;
                         Cell neighbour = GetCell(r + dr, c + dc);
                         if (neighbour != null && neighbour.IsOccupied()
-                            && neighbour.CurrentItem.Tier == tier)
+                            && neighbour.CurrentItem.Tier == tier
+                            && neighbour.CurrentItem.Family == family)
                             return true;
                     }
                 }
@@ -265,8 +270,10 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // Counts distinct adjacent same-tier pairs (each unordered pair once).
-    // LevelManager uses this to guarantee the opening board has merge pairs.
+    // Counts distinct adjacent mergeable pairs (each unordered pair once) — same
+    // family AND same tier, matching HasAnyValidMerge. LevelManager uses this to
+    // guarantee the opening board has real merge pairs; counting cross-family
+    // neighbours here would let it "guarantee" pairs that cannot be merged.
     public int CountAdjacentSameTierPairs()
     {
         if (grid == null) return 0;
@@ -280,7 +287,8 @@ public class GridManager : MonoBehaviour
                 if (cell == null || !cell.IsOccupied()) continue;
 
                 int tier = cell.CurrentItem.Tier;
-                if (tier >= Item.MaxTier) continue;
+                GemFamily family = cell.CurrentItem.Family;
+                if (tier >= Item.MaxTierFor(family)) continue;
 
                 // Only look at forward neighbours so each pair is counted once:
                 // east, south-west, south, south-east.
@@ -288,7 +296,8 @@ public class GridManager : MonoBehaviour
                 {
                     Cell neighbour = GetCell(r + dr, c + dc);
                     if (neighbour != null && neighbour.IsOccupied()
-                        && neighbour.CurrentItem.Tier == tier)
+                        && neighbour.CurrentItem.Tier == tier
+                        && neighbour.CurrentItem.Family == family)
                         pairs++;
                 }
             }

@@ -77,7 +77,7 @@ public class InputHandler : MonoBehaviour
         _isDragging = true;
         _dragOffset = (Vector2)item.transform.position - worldPos;
         _sourceCell = gridManager.FindCellWithItem(item);
-        HighlightAdjacentCells(_sourceCell, item.Tier);
+        HighlightAdjacentCells(_sourceCell, item.Tier, item.Family);
     }
 
     void HandleDrag()
@@ -175,7 +175,10 @@ public class InputHandler : MonoBehaviour
         _inputEnabled = enabled;
     }
 
-    void HighlightAdjacentCells(Cell source, int tier)
+    // The green "you can merge here" glow has to agree with MergeManager exactly,
+    // so it matches on family as well as tier. Matching on tier alone would light
+    // up a red neighbour of the same number and then refuse the drop.
+    void HighlightAdjacentCells(Cell source, int tier, GemFamily family)
     {
         if (source == null) return;
         for (int dr = -1; dr <= 1; dr++)
@@ -188,7 +191,9 @@ public class InputHandler : MonoBehaviour
 
                 if (!neighbour.IsOccupied())
                     neighbour.SetHighlight(HighlightMove);
-                else if (neighbour.CurrentItem.Tier == tier)
+                else if (neighbour.CurrentItem.Tier == tier
+                         && neighbour.CurrentItem.Family == family
+                         && tier < Item.MaxTierFor(family))
                     neighbour.SetHighlight(HighlightMerge);
             }
         }

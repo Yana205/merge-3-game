@@ -20,10 +20,14 @@ public class MergeManager : MonoBehaviour
         // Can't merge an item with itself
         if (itemA == itemB) return false;
 
-        // Must be the same tier
+        // Must be the same gem: identity is (family, tier), not tier alone. A red 3
+        // and a standard 3 share a number and nothing else.
+        if (itemA.Family != itemB.Family) return false;
         if (itemA.Tier != itemB.Tier) return false;
 
-        if (itemA.Tier >= Item.MaxTier) return false;
+        // Each family tops out at its own ceiling — the red chain is shorter, so a
+        // maxed red must be rejected well below the standard MaxTier.
+        if (itemA.Tier >= Item.MaxTierFor(itemA.Family)) return false;
 
         Cell cellA = gridManager.FindCellWithItem(itemA);
         Cell cellB = gridManager.FindCellWithItem(itemB);
@@ -38,9 +42,10 @@ public class MergeManager : MonoBehaviour
         gridManager.DespawnItem(itemA);
         gridManager.DespawnItem(itemB);
 
-        // Spawn merged item at the drop destination
+        // Spawn merged item at the drop destination, in the same family — a merge
+        // moves a gem up its own ladder, never across to another one.
         // (cellB is free here because RemoveItem already ran)
-        Item newItem = gridManager.SpawnItem(cellB, newTier);
+        Item newItem = gridManager.SpawnItem(cellB, newTier, itemA.Family);
         if (newItem == null)
         {
             Debug.LogError("MergeManager: SpawnItem returned null during merge.");

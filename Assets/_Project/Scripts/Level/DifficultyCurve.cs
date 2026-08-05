@@ -37,6 +37,18 @@ public class DifficultyCurve
     [Min(1)]
     [SerializeField] private int _headroomBelowMaxTier = 3;
 
+    [Header("Red Chain")]
+    [Tooltip("Score at which red gems start appearing at all. Below this the board " +
+             "is pure standard gems, which keeps the opening minutes teachable.")]
+    [Min(0)]
+    [SerializeField] private int _redUnlockScore = 400;
+
+    [Tooltip("Share of spawns that are red once unlocked. Reds only merge with " +
+             "reds and their ladder dead-ends, so every red is a cell the player " +
+             "may never get back — keep this low.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float _redSpawnChance = 0.12f;
+
     /// <summary>Gems to spawn after a successful move at this score. Always >= 1.</summary>
     public int SpawnCountAt(int score)
     {
@@ -82,6 +94,31 @@ public class DifficultyCurve
         }
 
         return 1;
+    }
+
+    /// <summary>
+    /// Roll one spawn's family. Call once per gem, alongside <see cref="PickTierAt"/>.
+    /// Returns Standard until the red unlock score, and Standard always if the red
+    /// ladder is unwired — so a half-configured GemConfig degrades to the original
+    /// single-chain game rather than spawning gems with no art.
+    /// </summary>
+    public GemFamily PickFamilyAt(int score)
+    {
+        if (score < _redUnlockScore) return GemFamily.Standard;
+        if (Item.MaxTierFor(GemFamily.Red) <= 0) return GemFamily.Standard;
+
+        return Random.value < _redSpawnChance ? GemFamily.Red : GemFamily.Standard;
+    }
+
+    /// <summary>
+    /// Tier for a freshly spawned gem of <paramref name="family"/>. Reds always
+    /// enter at tier 1: a red spawned mid-ladder needs two more reds of that exact
+    /// tier to ever leave the board, which the player cannot influence. Entering at
+    /// the bottom keeps every red climbable, so a jam is the player's doing.
+    /// </summary>
+    public int PickTierAt(int score, GemFamily family)
+    {
+        return family == GemFamily.Red ? 1 : PickTierAt(score);
     }
 
     // How many thresholds this score has reached. Counts rather than scans in

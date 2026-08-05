@@ -242,7 +242,10 @@ public class LevelManager : MonoBehaviour
             // Board is full. Stop here — InputHandler runs the jam check next.
             if (cell == null) break;
 
-            gridManager.SpawnItem(cell, difficulty.PickTierAt(score));
+            // Family first, then tier: reds always enter at tier 1, so the tier
+            // roll depends on which chain this gem landed in.
+            GemFamily family = difficulty.PickFamilyAt(score);
+            gridManager.SpawnItem(cell, difficulty.PickTierAt(score, family), family);
         }
     }
 
@@ -261,7 +264,7 @@ public class LevelManager : MonoBehaviour
             Cell source = gridManager.GetCell(
                 Random.Range(0, gridManager.rows), Random.Range(0, gridManager.cols));
             if (source == null || !source.IsOccupied()
-                || source.CurrentItem.Tier >= Item.MaxTier)
+                || source.CurrentItem.Tier >= Item.MaxTierFor(source.CurrentItem.Family))
                 continue;
 
             int dr = Random.Range(-1, 2), dc = Random.Range(-1, 2);
@@ -269,15 +272,19 @@ public class LevelManager : MonoBehaviour
             Cell target = gridManager.GetCell(source.row + dr, source.col + dc);
             if (target == null) continue;
 
+            // Copy family as well as tier — a "guaranteed pair" that spans two
+            // chains is not a pair at all, and the board could open unplayable.
             int tier = source.CurrentItem.Tier;
+            GemFamily family = source.CurrentItem.Family;
             if (target.IsOccupied())
             {
-                if (target.CurrentItem.Tier == tier) continue;
+                if (target.CurrentItem.Tier == tier
+                    && target.CurrentItem.Family == family) continue;
                 Item old = target.CurrentItem;
                 target.RemoveItem();
                 gridManager.DespawnItem(old);
             }
-            gridManager.SpawnItem(target, tier);
+            gridManager.SpawnItem(target, tier, family);
         }
 
         Debug.LogWarning("LevelManager: could not guarantee " + wanted + " merge pairs at board setup.");

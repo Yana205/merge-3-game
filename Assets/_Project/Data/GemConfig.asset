@@ -17,34 +17,87 @@ MonoBehaviour:
     hardness: 1
     tintColor: {r: 0.58, g: 0.624, b: 0.702, a: 1}
     sprite: {fileID: 21300000, guid: 3afb1d2def93c4ab49fdecb526343b9a, type: 3}
+    variantSprites: []
+    variantChance: 0
     scoreValue: 10
   - gemName: Ruby
     hardness: 2
     tintColor: {r: 0.851, g: 0.271, b: 0.353, a: 1}
     sprite: {fileID: 21300000, guid: 60a070c6642da4d7280ea93986d81dd2, type: 3}
+    variantSprites: []
+    variantChance: 0
     scoreValue: 20
   - gemName: Emerald
     hardness: 3
     tintColor: {r: 0.384, g: 0.902, b: 0.569, a: 1}
     sprite: {fileID: 21300000, guid: 10c7b6a135bd44016b7ff79cd33e04f0, type: 3}
+    variantSprites: []
+    variantChance: 0
     scoreValue: 30
   - gemName: Sapphire
     hardness: 4
     tintColor: {r: 0.345, g: 0.675, b: 0.902, a: 1}
     sprite: {fileID: 21300000, guid: 144dd00b2edc84ba7a7dc772fddc3aa5, type: 3}
+    variantSprites:
+    - {fileID: 21300000, guid: c1fefc85599f64c749348ef35165c30e, type: 3}
+    variantChance: 0.3
     scoreValue: 40
   - gemName: Citrine
     hardness: 5
     tintColor: {r: 0.902, g: 0.722, b: 0.306, a: 1}
     sprite: {fileID: 21300000, guid: fd6b59430a5a3440aa75618ee7eee271, type: 3}
+    variantSprites:
+    - {fileID: 21300000, guid: f7001a0fde52e47f78283d14850f31b8, type: 3}
+    variantChance: 0.3
     scoreValue: 50
   - gemName: Rhodochrosite
     hardness: 6
     tintColor: {r: 0.902, g: 0.376, b: 0.749, a: 1}
     sprite: {fileID: 21300000, guid: 74843b2f8412c4fe0b1768d378c56c6d, type: 3}
+    variantSprites:
+    - {fileID: 21300000, guid: 63abc3602c4624f17ab723312d9ab408, type: 3}
+    variantChance: 0.3
     scoreValue: 60
   - gemName: Diamond
     hardness: 7
     tintColor: {r: 0.863, g: 0.918, b: 0.941, a: 1}
     sprite: {fileID: 21300000, guid: 879a864986bda4643ac339969e04f966, type: 3}
+    variantSprites: []
+    variantChance: 0
     scoreValue: 70
+  redTiers:
+  - gemName: Garnet
+    hardness: 1
+    tintColor: {r: 0.8, g: 0.25, b: 0.25, a: 1}
+    sprite: {fileID: 21300000, guid: 928ece995733741f6ac8fb57e3d3d55a, type: 3}
+    variantSprites: []
+    variantChance: 0
+    scoreValue: 20
+  - gemName: Carnelian
+    hardness: 2
+    tintColor: {r: 0.85, g: 0.22, b: 0.22, a: 1}
+    sprite: {fileID: 21300000, guid: 2bf57f2ab8af34c6a9fbe0d84242196a, type: 3}
+    variantSprites: []
+    variantChance: 0
+    scoreValue: 40
+  - gemName: Cinnabar
+    hardness: 3
+    tintColor: {r: 0.9, g: 0.18, b: 0.2, a: 1}
+    sprite: {fileID: 21300000, guid: 80a68c2a9f69b40db88f317711947d7b, type: 3}
+    variantSprites: []
+    variantChance: 0
+    scoreValue: 60
+  - gemName: Realgar
+    hardness: 4
+    tintColor: {r: 0.95, g: 0.15, b: 0.18, a: 1}
+    sprite: {fileID: 21300000, guid: e967bd84db740423a9f81aaee7d5eb8e, type: 3}
+    variantSprites: []
+    variantChance: 0
+    scoreValue: 80
+  - gemName: Bloodstone
+    hardness: 5
+    tintColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+    sprite: {fileID: 21300000, guid: f78b9b0e099254750b3ff49c563caefa, type: 3}
+    variantSprites: []
+    variantChance: 0
+    scoreValue: 150
