@@ -76,8 +76,20 @@ public class MenuKeyboardNav : MonoBehaviour
         // Re-assert selection when this menu takes the keyboard back — after
         // Return to Menu, or after the panel stacked on top of it closes.
         // Otherwise the EventSystem keeps pointing at a now-hidden button.
+        //
+        // ...and then sit out the rest of THIS frame. _blockedBy alone is not
+        // enough: MonoBehaviour Update order is arbitrary, so when the panel above
+        // closes itself mid-frame, a menu that updates later in the same frame sees
+        // IsBlocked() go false while Input.GetKeyDown is still true for that whole
+        // frame — and the Enter meant for the leaderboard's Close would fire this
+        // menu's entry too. (That is how closing the leaderboard used to drop the
+        // player straight into a run.) Skipping one frame lets the key go up first.
         if (actionable && !_wasActionable)
+        {
             Select(0);
+            _wasActionable = true;
+            return;
+        }
         _wasActionable = actionable;
 
         if (!actionable || _entries == null || _entries.Length == 0) return;

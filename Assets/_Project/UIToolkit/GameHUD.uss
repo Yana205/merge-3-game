@@ -1,8 +1,13 @@
 /* GameHUD.uss — the Crystal Cavern HUD window.
 
-   Metrics come from the kit README section 5: 224px wide, 16px vertical /
-   18px horizontal padding, 12px between rows, panel_window 9-slice with an 8px
-   border, drop shadow 6px right / 6px down in #150D28 with no blur.
+   Metrics are the kit README section 5 numbers scaled up ~1.2-1.3x for
+   legibility: the panel renders through PanelSettings' ScaleWithScreenSize, so
+   every px here is multiplied by the screen/reference ratio before it reaches a
+   pixel. The kit's original 11px field labels landed at roughly 8px on a 960px
+   canvas, which is why the HUD read as unlabelled numbers.
+
+   The recessive label colour was lifted a step too (#8F6FC9 -> #A78BDA); at
+   this size the original sat too close to the panel fill to read.
 
    Still demonstrates the three selector kinds:
      - type selector   -> Button
@@ -21,8 +26,8 @@
    and -unity-slice-scale keeps the 8px corners from being stretched. */
 .panel {
     margin: 16px;
-    padding: 16px 18px;
-    width: 224px;
+    padding: 18px 20px;
+    width: 260px;
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/panel_window.png");
     -unity-slice-left: 8;
     -unity-slice-top: 8;
@@ -38,8 +43,8 @@
 }
 
 .heading-icon {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     margin-right: 8px;
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/icon_gem.png");
     -unity-background-scale-mode: scale-to-fit;
@@ -48,7 +53,7 @@
 /* CLASS SELECTOR — the panel heading. Silkscreen 13 / 0.14em / #6EE6E0. */
 .panel-header {
     -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Regular.ttf");
-    font-size: 13px;
+    font-size: 16px;
     letter-spacing: 2px;
     color: rgb(110, 230, 224);
     -unity-text-align: middle-left;
@@ -65,15 +70,15 @@
 /* Silkscreen 11 / 0.10em / #8F6FC9 — recessive by design. */
 .field-label {
     -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Regular.ttf");
-    font-size: 11px;
+    font-size: 15px;
     letter-spacing: 1px;
-    color: rgb(143, 111, 201);
+    color: rgb(167, 139, 218);
 }
 
 /* Numerals are Jersey 25, neutral #CFF8F2 by default. */
 .numeral {
     -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Jersey25-Regular.ttf");
-    font-size: 26px;
+    font-size: 34px;
     color: rgb(207, 248, 242);
     -unity-text-align: middle-right;
 }
@@ -90,9 +95,9 @@
 /* TYPE SELECTOR — every Button in this HUD uses the kit's 9-slice frame. */
 Button {
     margin-top: 4px;
-    padding: 8px 10px;
+    padding: 10px 12px;
     -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
-    font-size: 12px;
+    font-size: 15px;
     letter-spacing: 1px;
     color: rgb(165, 242, 236);
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_normal.png");

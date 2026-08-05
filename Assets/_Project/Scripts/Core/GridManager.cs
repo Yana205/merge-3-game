@@ -114,6 +114,11 @@ public class GridManager : MonoBehaviour
 
     public Cell GetCell(int row, int col)
     {
+        // rows/cols are serialized and keep their inspector values before
+        // CreateGrid runs, so an in-range index is not proof the grid exists.
+        // Every caller already handles a null cell; throwing here does not help.
+        if (grid == null) return null;
+
         if (row < 0 || row >= rows || col < 0 || col >= cols)
             return null;
         return grid[row, col];

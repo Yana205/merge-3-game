@@ -62,6 +62,15 @@ public class MenuController : MonoBehaviour
         RefreshBestScore();
         _menuPanel.SetActive(!s_menuDismissed);
         SetHudVisible(s_menuDismissed);
+
+        // The HUD's RESTART reaches us over the bus rather than through a
+        // reference, so the gameplay HUD stays ignorant of the menu.
+        GameEvents.RestartRequested += StartRun;
+    }
+
+    void OnDestroy()
+    {
+        GameEvents.RestartRequested -= StartRun;
     }
 
     // The HUD lives in two systems: uGUI score/target text behind UIManager, and

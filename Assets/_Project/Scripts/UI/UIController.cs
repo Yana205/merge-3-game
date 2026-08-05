@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Drives the UI Toolkit HUD (GameHUD.uxml). Queries its elements by name with
@@ -90,11 +89,15 @@ public class UIController : MonoBehaviour
             _highScoreLabel.text = best.ToString();
     }
 
-    // Button click -> restart the current scene. Self-contained so the HUD needs
-    // no references into gameplay systems.
+    // Button click -> ask for a fresh run over the bus. Still self-contained: the
+    // HUD holds no references into gameplay systems, it just says what happened.
+    //
+    // This used to reload the scene, which produced a dead screen: MenuController's
+    // s_menuDismissed is static and only resets at app start, so the reloaded scene
+    // showed no menu, and LevelManager.autoStartOnLoad is false so no run began —
+    // leaving no menu and a null grid with nothing to click.
     private void OnRestartClicked()
     {
-        Scene active = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(active.buildIndex);
+        GameEvents.RaiseRestartRequested();
     }
 }
