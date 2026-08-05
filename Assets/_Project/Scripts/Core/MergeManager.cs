@@ -34,7 +34,12 @@ public class MergeManager : MonoBehaviour
 
         if (cellA == null || cellB == null) return false;
 
+        // Read everything the result needs BEFORE despawning. DespawnItem returns
+        // the item to the pool via ItemFactory.Release, which runs ResetForPool and
+        // wipes tier and family — reading itemA.Family after that point yields the
+        // reset default, turning every red merge into a standard gem.
         int newTier = itemA.Tier + 1;
+        GemFamily family = itemA.Family;
 
         // Remove from cells and despawn old items through GridManager
         cellA.RemoveItem();
@@ -45,7 +50,7 @@ public class MergeManager : MonoBehaviour
         // Spawn merged item at the drop destination, in the same family — a merge
         // moves a gem up its own ladder, never across to another one.
         // (cellB is free here because RemoveItem already ran)
-        Item newItem = gridManager.SpawnItem(cellB, newTier, itemA.Family);
+        Item newItem = gridManager.SpawnItem(cellB, newTier, family);
         if (newItem == null)
         {
             Debug.LogError("MergeManager: SpawnItem returned null during merge.");
