@@ -7,10 +7,9 @@ public class UIManager : MonoBehaviour
     [Header("UI Elements (assign in Inspector)")]
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI targetText;
-    public GameObject levelCompletePanel;
     public GameObject gameOverPanel;
 
-    [Header("Level Banner (assign in Inspector)")]
+    [Header("Depth Banner (assign in Inspector)")]
     public CanvasGroup levelBanner;
     public TextMeshProUGUI levelBannerText;
     [SerializeField] private float bannerHold = 0.9f;
@@ -31,7 +30,6 @@ public class UIManager : MonoBehaviour
         if (levelManager != null)
         {
             levelManager.OnScoreChanged += UpdateScore;
-            levelManager.OnLevelComplete += ShowLevelComplete;
             levelManager.OnLevelChanged += UpdateLevel;
         }
         else
@@ -45,15 +43,12 @@ public class UIManager : MonoBehaviour
         if (levelManager != null)
         {
             levelManager.OnScoreChanged -= UpdateScore;
-            levelManager.OnLevelComplete -= ShowLevelComplete;
             levelManager.OnLevelChanged -= UpdateLevel;
         }
     }
 
     void Start()
     {
-        if (levelCompletePanel != null)
-            levelCompletePanel.SetActive(false);
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
         if (levelBanner != null)
@@ -122,20 +117,7 @@ public class UIManager : MonoBehaviour
             scoreText.text = "Score: " + _score;
 
         if (targetText != null)
-            targetText.text = "Level " + _level + "   ·   Next: " + _target;
-    }
-
-    // FUTURE: add star rating, particle burst
-    public void ShowLevelComplete()
-    {
-        if (levelCompletePanel != null)
-            levelCompletePanel.SetActive(true);
-    }
-
-    public void HideLevelComplete()
-    {
-        if (levelCompletePanel != null)
-            levelCompletePanel.SetActive(false);
+            targetText.text = "DEPTH " + _level + "   ·   NEXT " + _target;
     }
 
     public void ShowGameOver(int score, int levelReached)
@@ -144,7 +126,7 @@ public class UIManager : MonoBehaviour
 
         var text = gameOverPanel.transform.Find("GameOverText")?.GetComponent<TextMeshProUGUI>();
         if (text != null)
-            text.text = "Game Over\n\nScore  " + score + "\nReached  Level " + levelReached;
+            text.text = "GAME OVER\n\nSCORE  " + score + "\nDEPTH  " + levelReached;
 
         gameOverPanel.SetActive(true);
     }

@@ -3,16 +3,35 @@
     <ui:VisualElement name="hud-root" class="hud-root" picking-mode="Ignore">
         <!-- USS is linked on the root so the layout carries its own styling. -->
         <Style src="GameHUD.uss" />
-        <ui:VisualElement name="score-panel" class="panel">
-            <!-- .panel-header = the class selector demonstrated in the USS. -->
-            <ui:Label name="hud-title" text="✦ CRYSTALS ✦" class="panel-header" />
 
-            <!-- #score-label = the ID selector; UIController queries this by name. -->
-            <ui:Label name="score-label" text="Score: 0" class="stat stat--score" />
-            <ui:Label name="high-score-label" text="Best: 0" class="stat stat--best" />
+        <!-- Crystal Cavern HUD window: panel_window 9-slice, 224px wide. -->
+        <ui:VisualElement name="score-panel" class="panel">
+
+            <ui:VisualElement class="heading-row">
+                <ui:VisualElement name="heading-icon" class="heading-icon" />
+                <!-- .panel-header = the class selector. -->
+                <ui:Label name="hud-title" text="CRYSTALS" class="panel-header" />
+            </ui:VisualElement>
+
+            <!-- Each stat is a label on the left, a numeral hard right. -->
+            <ui:VisualElement class="stat-row">
+                <ui:Label text="SCORE" class="field-label" />
+                <!-- #score-label = the ID selector; UIController queries by name. -->
+                <ui:Label name="score-label" text="0" class="numeral numeral--gold" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="stat-row">
+                <ui:Label text="BEST" class="field-label" />
+                <ui:Label name="high-score-label" text="0" class="numeral" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="stat-row">
+                <ui:Label text="DEPTH" class="field-label" />
+                <ui:Label name="depth-label" text="1" class="numeral" />
+            </ui:VisualElement>
 
             <!-- Button = the type selector; clicked is wired in UIController. -->
-            <ui:Button name="restart-button" text="Restart" class="restart-button" />
+            <ui:Button name="restart-button" text="RESTART" class="restart-button" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

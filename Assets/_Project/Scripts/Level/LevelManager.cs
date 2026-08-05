@@ -1,5 +1,11 @@
 using UnityEngine;
 
+/// <summary>
+/// Runs the game as a single endless run. There is no level select and no
+/// authored LevelData: every board is generated procedurally, difficulty
+/// escalates with depth, the score carries across depths, and the run ends only
+/// when the board jams.
+/// </summary>
 public class LevelManager : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
@@ -12,7 +18,6 @@ public class LevelManager : MonoBehaviour
     // through the GameEvents bus — but the field is kept to avoid dirtying scene
     // serialization and for future direct-hook needs.
     public MergeManager mergeManager;
-    public LevelData[] levels;
     [SerializeField] private ProgressManager progressManager;
 
     [Header("Transitions (assign in Inspector)")]
@@ -22,25 +27,23 @@ public class LevelManager : MonoBehaviour
     [Header("Services (assign in Inspector)")]
     [SerializeField] private ServiceLoader serviceLoader;
 
-    // Fired after the last level is finished; MenuController shows the menu.
-    public event System.Action OnAllLevelsComplete;
-
     // Fired whenever the score changes, with (score, target). UIManager listens.
     public event System.Action<int, int> OnScoreChanged;
 
-    // Fired once when the target score is reached. UIManager listens.
-    public event System.Action OnLevelComplete;
-
-    // Fired whenever the endless level number changes (run start / advance).
+    // Fired whenever the depth changes (run start / advance).
     public event System.Action<int> OnLevelChanged;
 
-    [Header("Endless Mode")]
-    [Tooltip("Board size for every endless level.")]
+    [Header("Endless Run")]
+    [Tooltip("Build the first board as soon as the scene loads. Off while the " +
+             "intro banner owns the screen — the run begins on PRESS START.")]
+    [SerializeField] private bool autoStartOnLoad = false;
+
+    [Tooltip("Board size at every depth.")]
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
-    [Tooltip("Points needed to clear level 1.")]
+    [Tooltip("Points needed to clear depth 1.")]
     [SerializeField] private int baseTarget = 120;
-    [Tooltip("How much each level's point requirement grows over the previous one.")]
+    [Tooltip("How much each depth's point requirement grows over the previous one.")]
     [SerializeField] private int targetGrowth = 90;
 
     [Header("Runtime State")]
@@ -50,39 +53,42 @@ public class LevelManager : MonoBehaviour
 
     // Endless run state.
     private bool _runActive;
-    private int _endlessLevel;      // 1-based level number of the current run
-    private int _levelTarget;       // absolute cumulative score that clears this level
+    private int _endlessLevel;      // 1-based depth of the current run
+    private int _levelTarget;       // absolute cumulative score that clears this depth
 
     public int EndlessLevel => _endlessLevel;
     public int LevelTarget => _levelTarget;
 
-    // Guards the level-complete side effects (progress record, OnLevelComplete,
-    // input freeze) so they fire exactly once per level, even though ScoreChanged
-    // can arrive many times. Reset in LoadLevel.
-    private bool _levelComplete;
+    // Services are a precondition for building a board; the menu is a
+    // precondition for wanting one. Both are tracked so StartEndlessRun can be
+    // called at any time and simply waits for whichever is outstanding.
+    private bool _servicesReady;
+    private bool _startRequested;
 
     void Start()
     {
         AddListeners();
-
-        // Endless mode generates its levels procedurally, so the `levels` array is
-        // no longer required to start a run.
 
         // Don't touch the board until ServiceLoader has loaded the GemItem
         // Addressable and injected the ItemFactory into GridManager.
         if (serviceLoader == null)
         {
             Debug.LogError("LevelManager: serviceLoader is not assigned — starting the run without waiting for services.");
-            StartEndlessRun();
+            _servicesReady = true;
         }
         else if (serviceLoader.IsReady)
         {
-            StartEndlessRun();
+            _servicesReady = true;
         }
         else
         {
             serviceLoader.OnServicesReady += HandleServicesReady;
         }
+
+        // Off by default: the intro banner is up, and StartEndlessRun arrives
+        // from MenuController when the player presses start.
+        if (autoStartOnLoad)
+            StartEndlessRun();
     }
 
     void OnDestroy()
@@ -119,7 +125,14 @@ public class LevelManager : MonoBehaviour
     void HandleServicesReady()
     {
         serviceLoader.OnServicesReady -= HandleServicesReady;
-        StartEndlessRun();
+        _servicesReady = true;
+
+        // Replay a start that arrived while the Addressable was still loading.
+        if (_startRequested)
+        {
+            _startRequested = false;
+            StartEndlessRun();
+        }
     }
 
     void HandleGameOver()
@@ -145,9 +158,16 @@ public class LevelManager : MonoBehaviour
     /// </summary>
     public void StartEndlessRun()
     {
+        // Pressing start before the GemItem Addressable has landed would build a
+        // board with no factory. Remember the request and run it on the callback.
+        if (!_servicesReady)
+        {
+            _startRequested = true;
+            return;
+        }
+
         _runActive = true;
         _endlessLevel = 1;
-        _levelComplete = false;
         _levelTarget = baseTarget;
 
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
@@ -155,20 +175,20 @@ public class LevelManager : MonoBehaviour
 
         BuildEndlessBoard(_endlessLevel);
         OnLevelChanged?.Invoke(_endlessLevel);
+        GameEvents.RaiseDepthChanged(_endlessLevel);
         OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
 
         if (uiManager != null)
         {
             uiManager.HideGameOver();
-            uiManager.HideLevelComplete();
-            uiManager.ShowLevelBanner("Level 1");
+            uiManager.ShowLevelBanner("DEPTH 1");
         }
         if (inputHandler != null)
             inputHandler.ResetState();
     }
 
-    // Clear the run's score requirement for the current level is met — build the
-    // next, harder board (score carries over) and announce the new level.
+    // The current depth's score requirement is met — build the next, harder
+    // board (score carries over) and announce the new depth.
     void AdvanceLevel()
     {
         _endlessLevel++;
@@ -177,15 +197,16 @@ public class LevelManager : MonoBehaviour
 
         BuildEndlessBoard(_endlessLevel);
         OnLevelChanged?.Invoke(_endlessLevel);
+        GameEvents.RaiseDepthChanged(_endlessLevel);
         OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
 
         if (uiManager != null)
-            uiManager.ShowLevelBanner("Level " + _endlessLevel);
+            uiManager.ShowLevelBanner("DEPTH " + _endlessLevel);
         if (inputHandler != null)
             inputHandler.ResetState();
     }
 
-    // Fill a fresh board for the given level WITHOUT resetting the run score.
+    // Fill a fresh board for the given depth WITHOUT resetting the run score.
     void BuildEndlessBoard(int level)
     {
         if (gridManager == null) return;
@@ -224,57 +245,6 @@ public class LevelManager : MonoBehaviour
         data.spawnTable = table.ToArray();
 
         return data;
-    }
-
-    // FUTURE: add loading screen, level transition animation
-    public void LoadLevel(LevelData data)
-    {
-        if (data == null)
-        {
-            Debug.LogError("LevelManager: LevelData is null — cannot load level.");
-            return;
-        }
-        if (gridManager == null)
-        {
-            Debug.LogError("LevelManager: GridManager reference is missing.");
-            return;
-        }
-
-        currentLevel = data;
-        _localScore = 0;
-        _levelComplete = false;
-        scoreController?.ResetScore();
-
-        if (background != null && data.backgroundSprite != null)
-            background.SetSprite(data.backgroundSprite);
-
-        gridManager.CreateGrid(data.rows, data.cols);
-
-        for (int r = 0; r < data.rows; r++)
-            for (int c = 0; c < data.cols; c++)
-            {
-                if (Random.value < data.emptyChance)
-                    continue;
-                int tier = data.PickRandomTier();
-                gridManager.SpawnItem(gridManager.GetCell(r, c), tier);
-            }
-
-        EnsureGuaranteedPairs(data.guaranteedPairs);
-
-        if (inputHandler != null)
-            inputHandler.ResetState();
-
-        // With a ScoreController wired, ResetScore() above already raised
-        // ScoreChanged(0) through the bus -> HandleScoreChanged refreshed the UI.
-        // Only sync the UI directly on the no-ScoreController fallback path.
-        if (scoreController == null)
-            OnScoreChanged?.Invoke(CurrentScore, data.targetScore);
-
-        if (uiManager != null)
-        {
-            uiManager.HideLevelComplete();
-            uiManager.HideGameOver();
-        }
     }
 
     // A random fill can start with no adjacent same-tier pair, which is an
@@ -320,39 +290,13 @@ public class LevelManager : MonoBehaviour
     // longer computes merge points itself (that moved to ScoreController).
     void HandleScoreChanged(int total)
     {
-        if (_runActive)
-        {
-            OnScoreChanged?.Invoke(total, _levelTarget);
-            // Reaching the target rolls straight into the next, harder level —
-            // the score carries over, so the run only ends on a board jam.
-            if (total >= _levelTarget)
-                AdvanceLevel();
-            return;
-        }
+        if (!_runActive) return;
 
-        OnScoreChanged?.Invoke(total, currentLevel != null ? currentLevel.targetScore : 0);
-        if (currentLevel != null)
-            CheckLevelComplete(total);
-    }
-
-    void CheckLevelComplete(int total)
-    {
-        if (_levelComplete) return;
-        // A non-positive target would be satisfied by the load-time ScoreChanged(0)
-        // and complete the level instantly — treat it as "no target".
-        if (currentLevel.targetScore <= 0) return;
-        if (total < currentLevel.targetScore) return;
-
-        _levelComplete = true;
-
-        int levelIndex = System.Array.IndexOf(levels, currentLevel);
-        if (levelIndex >= 0)
-            progressManager?.RecordResult(levelIndex, total);
-
-        // Level complete — freeze the board so no more cells can be moved/merged.
-        OnLevelComplete?.Invoke();
-        if (inputHandler != null)
-            inputHandler.SetInputEnabled(false);
+        OnScoreChanged?.Invoke(total, _levelTarget);
+        // Reaching the target rolls straight into the next, harder depth — the
+        // score carries over, so the run only ever ends on a board jam.
+        if (total >= _levelTarget)
+            AdvanceLevel();
     }
 
     // Manual scoring seam (bonuses, tests). Routes through ScoreController so the
@@ -369,58 +313,5 @@ public class LevelManager : MonoBehaviour
             _localScore += points;
             HandleScoreChanged(_localScore);
         }
-    }
-
-    // Loads a level in place (no scene reload) and announces it.
-    public void LoadLevelByIndex(int index)
-    {
-        if (levels == null || index < 0 || index >= levels.Length)
-        {
-            Debug.LogError("LevelManager: level index " + index + " is out of range.");
-            return;
-        }
-
-        PlayerPrefs.SetInt("SelectedLevel", index);
-        LoadLevel(levels[index]);
-
-        if (uiManager != null)
-            uiManager.ShowLevelBanner("Level " + (index + 1));
-    }
-
-    // Called by "Next Level" button
-    public void GoToNextLevel()
-    {
-        int nextIndex = PlayerPrefs.GetInt("SelectedLevel", 0) + 1;
-
-        if (nextIndex < levels.Length)
-        {
-            RunWithFade(() => LoadLevelByIndex(nextIndex));
-        }
-        else
-        {
-            // All levels complete — hand control back to the main menu.
-            // FUTURE: show "All Levels Complete!" screen
-            PlayerPrefs.SetInt("SelectedLevel", 0);
-            RunWithFade(ReturnToMenu);
-        }
-    }
-
-    void ReturnToMenu()
-    {
-        if (uiManager != null)
-        {
-            uiManager.HideLevelComplete();
-            uiManager.HideGameOver();
-        }
-        OnAllLevelsComplete?.Invoke();
-    }
-
-    // Fades if a ScreenFader is wired; degrades to an instant switch if not.
-    void RunWithFade(System.Action midpoint)
-    {
-        if (screenFader != null)
-            screenFader.RunTransition(midpoint);
-        else
-            midpoint();
     }
 }

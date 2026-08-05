@@ -13,7 +13,10 @@ public class MenuController : MonoBehaviour
     [SerializeField] private GameObject _menuPanel;
 
     [Header("References (assign in Inspector)")]
-    [SerializeField] private LevelSelectUI _levelSelect;
+    [Tooltip("The UI Toolkit gameplay HUD. UIManager.SetHudVisible only reaches " +
+             "the uGUI text, so the UIDocument is toggled separately.")]
+    [SerializeField] private GameObject _gameplayHud;
+
     [SerializeField] private UIManager _uiManager;
     [SerializeField] private LevelManager _levelManager;
     [SerializeField] private ScreenFader _fader;
@@ -58,7 +61,16 @@ public class MenuController : MonoBehaviour
 
         RefreshBestScore();
         _menuPanel.SetActive(!s_menuDismissed);
-        if (_uiManager != null) _uiManager.SetHudVisible(s_menuDismissed);
+        SetHudVisible(s_menuDismissed);
+    }
+
+    // The HUD lives in two systems: uGUI score/target text behind UIManager, and
+    // the UI Toolkit UIDocument. Both have to move together or the banner shows
+    // with a score panel floating over it.
+    void SetHudVisible(bool visible)
+    {
+        if (_uiManager != null) _uiManager.SetHudVisible(visible);
+        if (_gameplayHud != null) _gameplayHud.SetActive(visible);
     }
 
     void RefreshBestScore()
@@ -84,10 +96,8 @@ public class MenuController : MonoBehaviour
         _menuPanel.SetActive(false);
 
         if (_uiManager != null)
-        {
             _uiManager.HideGameOver();
-            _uiManager.SetHudVisible(true);
-        }
+        SetHudVisible(true);
 
         if (_levelManager != null)
             _levelManager.StartEndlessRun();
@@ -96,10 +106,9 @@ public class MenuController : MonoBehaviour
     public void ReturnToMenu()
     {
         if (_uiManager != null)
-        {
             _uiManager.HideGameOver();
-            _uiManager.SetHudVisible(false);
-        }
+        SetHudVisible(false);
+
         s_menuDismissed = false;
         RefreshBestScore();
         _menuPanel.SetActive(true);
@@ -107,10 +116,11 @@ public class MenuController : MonoBehaviour
 
     public void QuitGame()
     {
-        if (_levelSelect != null)
-            _levelSelect.QuitGame();
-        else
-            Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 
     public void OpenLeaderboard()

@@ -1,91 +1,118 @@
-/* GameHUD.uss — styling for the UI Toolkit HUD.
-   Demonstrates the three selector kinds the lesson asks for:
+/* GameHUD.uss — the Crystal Cavern HUD window.
+
+   Metrics come from the kit README section 5: 224px wide, 16px vertical /
+   18px horizontal padding, 12px between rows, panel_window 9-slice with an 8px
+   border, drop shadow 6px right / 6px down in #150D28 with no blur.
+
+   Still demonstrates the three selector kinds:
      - type selector   -> Button
-     - ID selector      -> #score-label
-     - class selector   -> .panel-header
+     - ID selector     -> #score-label
+     - class selector  -> .panel-header
 */
 
-/* Root fills the panel but ignores picking so gameplay clicks pass through. */
+/* Root fills the screen but ignores picking so gameplay clicks pass through. */
 .hud-root {
     flex-grow: 1;
     align-items: flex-start;
     justify-content: flex-start;
 }
 
-/* The frosted crystal card in the corner. */
+/* 9-slice frame. -unity-slice-* must match the sprite border set on import,
+   and -unity-slice-scale keeps the 8px corners from being stretched. */
 .panel {
     margin: 16px;
-    padding: 12px 18px;
-    min-width: 190px;
-    background-color: rgba(18, 26, 48, 0.82);
-    border-left-color: rgba(120, 220, 255, 0.9);
-    border-right-color: rgba(120, 220, 255, 0.9);
-    border-top-color: rgba(120, 220, 255, 0.9);
-    border-bottom-color: rgba(120, 220, 255, 0.9);
-    border-left-width: 2px;
-    border-right-width: 2px;
-    border-top-width: 2px;
-    border-bottom-width: 2px;
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
+    padding: 16px 18px;
+    width: 224px;
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/panel_window.png");
+    -unity-slice-left: 8;
+    -unity-slice-top: 8;
+    -unity-slice-right: 8;
+    -unity-slice-bottom: 8;
+    -unity-slice-scale: 1px;
 }
 
-/* CLASS SELECTOR — the crystal title band. */
+.heading-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.heading-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/icon_gem.png");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* CLASS SELECTOR — the panel heading. Silkscreen 13 / 0.14em / #6EE6E0. */
 .panel-header {
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    font-size: 20px;
-    color: rgb(150, 235, 255);
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Regular.ttf");
+    font-size: 13px;
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    color: rgb(110, 230, 224);
+    -unity-text-align: middle-left;
 }
 
-.stat {
+/* Label hard left, numeral hard right. */
+.stat-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+/* Silkscreen 11 / 0.10em / #8F6FC9 — recessive by design. */
+.field-label {
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Regular.ttf");
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgb(143, 111, 201);
+}
+
+/* Numerals are Jersey 25, neutral #CFF8F2 by default. */
+.numeral {
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Jersey25-Regular.ttf");
     font-size: 26px;
-    -unity-font-style: bold;
-    color: rgb(240, 248, 255);
-    margin-top: 2px;
-    margin-bottom: 2px;
+    color: rgb(207, 248, 242);
+    -unity-text-align: middle-right;
 }
 
-/* ID SELECTOR — the live score line gets an extra glow tint. */
+/* ID SELECTOR — the live score is the one gold numeral (#F5C542). */
 #score-label {
-    color: rgb(255, 240, 170);
+    color: rgb(245, 197, 66);
 }
 
-.stat--best {
-    font-size: 18px;
-    color: rgb(170, 200, 230);
+.numeral--gold {
+    color: rgb(245, 197, 66);
 }
 
-/* TYPE SELECTOR — every Button in this HUD. */
+/* TYPE SELECTOR — every Button in this HUD uses the kit's 9-slice frame. */
 Button {
-    margin-top: 12px;
-    padding: 6px 10px;
-    font-size: 16px;
-    -unity-font-style: bold;
-    color: rgb(10, 20, 40);
-    background-color: rgb(120, 220, 255);
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
+    margin-top: 4px;
+    padding: 8px 10px;
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: rgb(165, 242, 236);
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_normal.png");
+    background-color: rgba(0, 0, 0, 0);
+    -unity-slice-left: 6;
+    -unity-slice-top: 6;
+    -unity-slice-right: 6;
+    -unity-slice-bottom: 6;
+    -unity-slice-scale: 1px;
     border-left-width: 0;
     border-right-width: 0;
     border-top-width: 0;
     border-bottom-width: 0;
-    transition-property: scale, background-color;
-    transition-duration: 0.08s, 0.08s;
 }
 
 Button:hover {
-    background-color: rgb(170, 235, 255);
-    scale: 1.04 1.04;
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_selected.png");
+    color: rgb(239, 255, 252);
 }
 
 Button:active {
-    background-color: rgb(90, 180, 220);
-    scale: 0.97 0.97;
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }

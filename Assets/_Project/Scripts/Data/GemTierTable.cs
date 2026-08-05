@@ -49,14 +49,6 @@ public static class GemTierTable
         return Names[i];
     }
 
-    /// <summary>Black or white label, whichever stays readable on the tier color.</summary>
-    public static Color LabelColorFor(int tier)
-    {
-        Color c = ColorFor(tier);
-        float luminance = 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
-        return luminance > 0.6f ? Color.black : Color.white;
-    }
-
     static Color Hex(int rgb)
     {
         return new Color(

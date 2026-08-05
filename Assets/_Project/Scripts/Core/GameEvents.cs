@@ -27,6 +27,9 @@ public static class GameEvents
     /// <summary>Raised after two tiles merge into a higher tier. Args: the new merged Item and its Cell.</summary>
     public static event Action<Item, Cell> TileMerged;
 
+    /// <summary>Raised when the endless run reaches a new depth. Arg: the new depth (1-based).</summary>
+    public static event Action<int> DepthChanged;
+
     /// <summary>Raised when a system wants persistent state written to disk.</summary>
     public static event Action SaveRequested;
 
@@ -37,6 +40,8 @@ public static class GameEvents
     public static void RaiseScoreChanged(int newTotal) => ScoreChanged?.Invoke(newTotal);
 
     public static void RaiseTileMerged(Item merged, Cell cell) => TileMerged?.Invoke(merged, cell);
+
+    public static void RaiseDepthChanged(int depth) => DepthChanged?.Invoke(depth);
 
     public static void RaiseSaveRequested() => SaveRequested?.Invoke();
 
@@ -51,6 +56,7 @@ public static class GameEvents
     {
         ScoreChanged = null;
         TileMerged = null;
+        DepthChanged = null;
         SaveRequested = null;
     }
 }

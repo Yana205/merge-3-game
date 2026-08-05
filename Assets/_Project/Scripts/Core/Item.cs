@@ -1,11 +1,9 @@
 using UnityEngine;
-using TMPro;
 
 public class Item : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private SpriteRenderer spriteRenderer;
-    [SerializeField] private TextMeshPro tierLabel;
 
     [Header("Config")]
     [SerializeField] private GemConfig gemConfig;
@@ -29,20 +27,6 @@ public class Item : MonoBehaviour
     {
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
-
-        if (tierLabel == null)
-            tierLabel = GetComponentInChildren<TextMeshPro>();
-
-        // Label MeshRenderer must render above the SpriteRenderer
-        if (tierLabel != null)
-        {
-            MeshRenderer labelRenderer = tierLabel.GetComponent<MeshRenderer>();
-            if (labelRenderer != null)
-            {
-                labelRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
-                labelRenderer.sortingOrder = spriteRenderer.sortingOrder + 1;
-            }
-        }
     }
 
     public void Setup(int tier)
@@ -54,6 +38,8 @@ public class Item : MonoBehaviour
             _sharedConfig = gemConfig;
             GemData = gemConfig.GetTier(tier);
 
+            // Tier is read from the artwork alone: each tier has its own colour
+            // AND its own silhouette, so the crystals carry no number overlay.
             if (GemData.sprite != null)
             {
                 spriteRenderer.sprite = GemData.sprite;
@@ -64,25 +50,13 @@ public class Item : MonoBehaviour
                 spriteRenderer.sprite = GetWhiteSquare();
                 spriteRenderer.color = GemData.tintColor;
             }
-
-            // Full gem names overflow the cell; the number keeps tiers readable.
-            if (tierLabel != null)
-            {
-                tierLabel.text = tier.ToString();
-                tierLabel.color = GemTierTable.LabelColorFor(tier);
-            }
         }
         else
         {
             // No GemConfig assigned — fall back to the built-in tier ladder so the
-            // merge progression is readable (distinct color per level + number).
+            // merge progression stays readable (distinct colour per tier).
             spriteRenderer.sprite = GetWhiteSquare();
             spriteRenderer.color = GemTierTable.ColorFor(tier);
-            if (tierLabel != null)
-            {
-                tierLabel.text = tier.ToString();
-                tierLabel.color = GemTierTable.LabelColorFor(tier);
-            }
         }
     }
 
@@ -105,9 +79,6 @@ public class Item : MonoBehaviour
             spriteRenderer.sprite = null;
             spriteRenderer.color = Color.white;
         }
-
-        if (tierLabel != null)
-            tierLabel.text = "";
 
         // Pooled-object cleanup: unsubscription happens on return to pool, not in
         // OnDestroy (a pooled item is rarely destroyed). Dropping every subscriber
