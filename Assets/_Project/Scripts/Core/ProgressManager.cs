@@ -18,15 +18,15 @@ public class ProgressManager : MonoBehaviour
 
     /// <summary>
     /// Record a finished run, keeping only the top <see cref="MaxLeaderboardEntries"/>
-    /// by score. Ties break toward the higher level reached.
+    /// by score. Score is the only thing a run is measured by now that the board
+    /// is one continuous grid — <see cref="RunEntry.level"/> stays in the saved
+    /// type so older save files still deserialize, but is no longer written.
     /// </summary>
-    public void RecordRun(int score, int level)
+    public void RecordRun(int score)
     {
         var runs = new List<RunEntry>(_progress.topRuns ?? new RunEntry[0]);
-        runs.Add(new RunEntry { score = score, level = level });
-        runs.Sort((a, b) => a.score != b.score
-            ? b.score.CompareTo(a.score)
-            : b.level.CompareTo(a.level));
+        runs.Add(new RunEntry { score = score });
+        runs.Sort((a, b) => b.score.CompareTo(a.score));
         if (runs.Count > MaxLeaderboardEntries)
             runs.RemoveRange(MaxLeaderboardEntries, runs.Count - MaxLeaderboardEntries);
 

@@ -11,7 +11,7 @@ using UnityEngine.SceneManagement;
 //   3. FACTORY     — ItemFactory: one Init(prefab, pool); no game logic.
 //        │ pool.Get() / pool.Release(); Addressables handle.Result
 //   4. SERVICES    — MonoBehaviourPool<Item>, Addressables, ISaveSystem,
-//                    GemConfig / LevelData ScriptableObjects.
+//                    GemConfig ScriptableObject.
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }

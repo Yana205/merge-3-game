@@ -20,7 +20,6 @@ public class UIController : MonoBehaviour
     private UIDocument _document;
     private Label _scoreLabel;
     private Label _highScoreLabel;
-    private Label _depthLabel;
     private Button _restartButton;
 
     private int _highScore;
@@ -41,7 +40,6 @@ public class UIController : MonoBehaviour
         // Q<T>("name") — names must match the UXML exactly or these return null.
         _scoreLabel = root.Q<Label>("score-label");
         _highScoreLabel = root.Q<Label>("high-score-label");
-        _depthLabel = root.Q<Label>("depth-label");
         _restartButton = root.Q<Button>("restart-button");
 
         if (_scoreLabel == null || _highScoreLabel == null || _restartButton == null)
@@ -50,19 +48,16 @@ public class UIController : MonoBehaviour
         _highScore = PlayerPrefs.GetInt(highScoreKey, 0);
         SetScore(0);
         SetHighScore(_highScore);
-        SetDepth(1);
 
         if (_restartButton != null)
             _restartButton.clicked += OnRestartClicked;
 
         GameEvents.ScoreChanged += OnScoreChanged;
-        GameEvents.DepthChanged += SetDepth;
     }
 
     void OnDisable()
     {
         GameEvents.ScoreChanged -= OnScoreChanged;
-        GameEvents.DepthChanged -= SetDepth;
 
         if (_restartButton != null)
             _restartButton.clicked -= OnRestartClicked;
@@ -81,7 +76,7 @@ public class UIController : MonoBehaviour
         }
     }
 
-    // The UXML carries the SCORE / BEST / DEPTH captions in their own elements,
+    // The UXML carries the SCORE / BEST captions in their own elements,
     // so these labels hold the bare numeral.
     private void SetScore(int total)
     {
@@ -93,12 +88,6 @@ public class UIController : MonoBehaviour
     {
         if (_highScoreLabel != null)
             _highScoreLabel.text = best.ToString();
-    }
-
-    private void SetDepth(int depth)
-    {
-        if (_depthLabel != null)
-            _depthLabel.text = depth.ToString();
     }
 
     // Button click -> restart the current scene. Self-contained so the HUD needs

@@ -25,11 +25,6 @@
                 <ui:Label name="high-score-label" text="0" class="numeral" />
             </ui:VisualElement>
 
-            <ui:VisualElement class="stat-row">
-                <ui:Label text="DEPTH" class="field-label" />
-                <ui:Label name="depth-label" text="1" class="numeral" />
-            </ui:VisualElement>
-
             <!-- Button = the type selector; clicked is wired in UIController. -->
             <ui:Button name="restart-button" text="RESTART" class="restart-button" />
         </ui:VisualElement>

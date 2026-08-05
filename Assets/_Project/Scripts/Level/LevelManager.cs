@@ -1,10 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Runs the game as a single endless run. There is no level select and no
-/// authored LevelData: every board is generated procedurally, difficulty
-/// escalates with depth, the score carries across depths, and the run ends only
-/// when the board jams.
+/// Runs the game as a single endless board. There is no level select, no authored
+/// level data, and no depth: one grid is built when the run starts and lives until
+/// it jams. Difficulty is not a stage the player crosses into — it is a continuous
+/// function of the running score, applied on every move by <see cref="DifficultyCurve"/>.
+///
+/// This manager owns the spawn decision because it is the only object that already
+/// holds references to all three parties: the score, the grid, and the input that
+/// signals a completed move.
 /// </summary>
 public class LevelManager : MonoBehaviour
 {
@@ -27,37 +31,47 @@ public class LevelManager : MonoBehaviour
     [Header("Services (assign in Inspector)")]
     [SerializeField] private ServiceLoader serviceLoader;
 
-    // Fired whenever the score changes, with (score, target). UIManager listens.
+    // Fired whenever the score changes, with (score, best). UIManager listens.
     public event System.Action<int, int> OnScoreChanged;
 
-    // Fired whenever the depth changes (run start / advance).
-    public event System.Action<int> OnLevelChanged;
-
-    [Header("Endless Run")]
-    [Tooltip("Build the first board as soon as the scene loads. Off while the " +
-             "intro banner owns the screen — the run begins on PRESS START.")]
+    [Header("Endless Board")]
+    [Tooltip("Build the board as soon as the scene loads. Off while the intro " +
+             "banner owns the screen — the run begins on PRESS START.")]
     [SerializeField] private bool autoStartOnLoad = false;
 
-    [Tooltip("Board size at every depth.")]
+    [Tooltip("Board size. Built once per run and never rebuilt.")]
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
-    [Tooltip("Points needed to clear depth 1.")]
-    [SerializeField] private int baseTarget = 120;
-    [Tooltip("How much each depth's point requirement grows over the previous one.")]
-    [SerializeField] private int targetGrowth = 90;
 
-    [Header("Runtime State")]
-    public LevelData currentLevel;
+    [Tooltip("Chance each cell starts empty when the board is first laid out.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float startingEmptyChance = 0.28f;
+
+    [Tooltip("Adjacent same-tier pairs guaranteed on the opening board. A random " +
+             "fill can contain none at all, which is an instant loss.")]
+    [Min(0)]
+    [SerializeField] private int startingGuaranteedPairs = 3;
+
+    [Header("Difficulty")]
+    [SerializeField] private DifficultyCurve difficulty = new DifficultyCurve();
+
+    // ----- Runtime state -----------------------------------------------------
+
     public int CurrentScore => scoreController != null ? scoreController.Score : _localScore;
     private int _localScore;
 
-    // Endless run state.
     private bool _runActive;
-    private int _endlessLevel;      // 1-based depth of the current run
-    private int _levelTarget;       // absolute cumulative score that clears this depth
 
-    public int EndlessLevel => _endlessLevel;
-    public int LevelTarget => _levelTarget;
+    // Best score to display: whatever previous runs recorded, or this run once it
+    // overtakes them — a run in progress that beats your record should say so.
+    private int BestScore
+    {
+        get
+        {
+            int recorded = progressManager != null ? progressManager.GetBestScore() : 0;
+            return Mathf.Max(recorded, CurrentScore);
+        }
+    }
 
     // Services are a precondition for building a board; the menu is a
     // precondition for wanting one. Both are tracked so StartEndlessRun can be
@@ -106,7 +120,10 @@ public class LevelManager : MonoBehaviour
     private void AddListeners()
     {
         if (inputHandler != null)
+        {
             inputHandler.OnGameOver += HandleGameOver;
+            inputHandler.OnMoveCompleted += HandleMoveCompleted;
+        }
 
         // Bus: react to score changes from anywhere. A merge now routes
         // GameEvents.TileMerged -> ScoreController -> GameEvents.ScoreChanged, and
@@ -117,7 +134,10 @@ public class LevelManager : MonoBehaviour
     private void RemoveListeners()
     {
         if (inputHandler != null)
+        {
             inputHandler.OnGameOver -= HandleGameOver;
+            inputHandler.OnMoveCompleted -= HandleMoveCompleted;
+        }
 
         GameEvents.ScoreChanged -= HandleScoreChanged;
     }
@@ -137,24 +157,24 @@ public class LevelManager : MonoBehaviour
 
     void HandleGameOver()
     {
-        // End the run and record it before the game-over screen shows the result.
+        // End the run and record it before the game-over screen shows the result,
+        // so a new personal best is already in the leaderboard when BestScore reads it.
         int score = CurrentScore;
-        int level = _endlessLevel;
         if (_runActive)
         {
             _runActive = false;
-            progressManager?.RecordRun(score, level);
+            progressManager?.RecordRun(score);
         }
 
         if (uiManager != null)
-            uiManager.ShowGameOver(score, level);
+            uiManager.ShowGameOver(score, BestScore);
     }
 
-    // ----- Endless mode ------------------------------------------------------
+    // ----- Endless run -------------------------------------------------------
 
     /// <summary>
-    /// Start a fresh infinite run: score back to 0, level 1, first board built.
-    /// Levels then advance automatically as the running score passes each target.
+    /// Start a fresh run: score back to 0 and one board laid out. That board is
+    /// never rebuilt — the run ends only when it jams.
     /// </summary>
     public void StartEndlessRun()
     {
@@ -167,84 +187,56 @@ public class LevelManager : MonoBehaviour
         }
 
         _runActive = true;
-        _endlessLevel = 1;
-        _levelTarget = baseTarget;
 
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
         _localScore = 0;
 
-        BuildEndlessBoard(_endlessLevel);
-        OnLevelChanged?.Invoke(_endlessLevel);
-        GameEvents.RaiseDepthChanged(_endlessLevel);
-        OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
+        BuildStartingBoard();
+        OnScoreChanged?.Invoke(CurrentScore, BestScore);
 
         if (uiManager != null)
-        {
             uiManager.HideGameOver();
-            uiManager.ShowLevelBanner("DEPTH 1");
-        }
         if (inputHandler != null)
             inputHandler.ResetState();
     }
 
-    // The current depth's score requirement is met — build the next, harder
-    // board (score carries over) and announce the new depth.
-    void AdvanceLevel()
-    {
-        _endlessLevel++;
-        int increment = baseTarget + (_endlessLevel - 1) * targetGrowth;
-        _levelTarget = CurrentScore + increment;
-
-        BuildEndlessBoard(_endlessLevel);
-        OnLevelChanged?.Invoke(_endlessLevel);
-        GameEvents.RaiseDepthChanged(_endlessLevel);
-        OnScoreChanged?.Invoke(CurrentScore, _levelTarget);
-
-        if (uiManager != null)
-            uiManager.ShowLevelBanner("DEPTH " + _endlessLevel);
-        if (inputHandler != null)
-            inputHandler.ResetState();
-    }
-
-    // Fill a fresh board for the given depth WITHOUT resetting the run score.
-    void BuildEndlessBoard(int level)
+    // The one and only board build of a run. Everything after this is spawning
+    // into the board the player is already playing on.
+    void BuildStartingBoard()
     {
         if (gridManager == null) return;
 
-        LevelData data = BuildEndlessLevelData(level);
-        currentLevel = data;
+        gridManager.CreateGrid(endlessRows, endlessCols);
 
-        gridManager.CreateGrid(data.rows, data.cols);
-        for (int r = 0; r < data.rows; r++)
-            for (int c = 0; c < data.cols; c++)
+        for (int r = 0; r < endlessRows; r++)
+            for (int c = 0; c < endlessCols; c++)
             {
-                if (Random.value < data.emptyChance) continue;
-                gridManager.SpawnItem(gridManager.GetCell(r, c), data.PickRandomTier());
+                if (Random.value < startingEmptyChance) continue;
+                // Score 0, so the curve hands back tier 1 — the opening board is
+                // pure fodder by construction, no special case needed.
+                gridManager.SpawnItem(gridManager.GetCell(r, c), difficulty.PickTierAt(0));
             }
 
-        EnsureGuaranteedPairs(data.guaranteedPairs);
+        EnsureGuaranteedPairs(startingGuaranteedPairs);
     }
 
-    // Procedurally scale a level: same board size, escalating target, and a
-    // rising spawn floor so higher levels start with more high-tier clutter.
-    LevelData BuildEndlessLevelData(int level)
+    // A move landed. This is where difficulty actually bites: how many gems arrive
+    // and how awkward they are is read straight off the running score.
+    void HandleMoveCompleted()
     {
-        var data = ScriptableObject.CreateInstance<LevelData>();
-        data.rows = endlessRows;
-        data.cols = endlessCols;
-        data.targetScore = _levelTarget;
-        data.emptyChance = 0.28f;
-        data.guaranteedPairs = 3;
+        if (!_runActive || gridManager == null) return;
 
-        // Spawn tiers 1..maxSpawn, weighted toward the low end; maxSpawn climbs
-        // with the level (capped below the ladder top so a merge is always left).
-        int maxSpawn = Mathf.Clamp(1 + (level - 1) / 2, 1, Mathf.Max(1, Item.MaxTier - 2));
-        var table = new System.Collections.Generic.List<SpawnEntry>();
-        for (int t = 1; t <= maxSpawn; t++)
-            table.Add(new SpawnEntry { tier = t, weight = Mathf.Max(1f, maxSpawn - t + 1) });
-        data.spawnTable = table.ToArray();
+        int score = CurrentScore;
+        int count = difficulty.SpawnCountAt(score);
 
-        return data;
+        for (int i = 0; i < count; i++)
+        {
+            Cell cell = gridManager.GetRandomEmptyCell();
+            // Board is full. Stop here — InputHandler runs the jam check next.
+            if (cell == null) break;
+
+            gridManager.SpawnItem(cell, difficulty.PickTierAt(score));
+        }
     }
 
     // A random fill can start with no adjacent same-tier pair, which is an
@@ -285,23 +277,18 @@ public class LevelManager : MonoBehaviour
     }
 
     // Bus handler: ScoreController owns the number and raises ScoreChanged after
-    // every change (merge scoring, manual AddScore, ResetScore). LevelManager
-    // reacts by refreshing the UI signal and checking for completion — it no
-    // longer computes merge points itself (that moved to ScoreController).
+    // every change. With no target to clear, this is now purely a HUD relay — the
+    // score's only mechanical job is feeding DifficultyCurve on the next move.
     void HandleScoreChanged(int total)
     {
         if (!_runActive) return;
 
-        OnScoreChanged?.Invoke(total, _levelTarget);
-        // Reaching the target rolls straight into the next, harder depth — the
-        // score carries over, so the run only ever ends on a board jam.
-        if (total >= _levelTarget)
-            AdvanceLevel();
+        OnScoreChanged?.Invoke(total, BestScore);
     }
 
     // Manual scoring seam (bonuses, tests). Routes through ScoreController so the
-    // bus and completion check fire exactly like a merge does; falls back to a
-    // local tally only when no ScoreController is wired.
+    // bus fires exactly like a merge does; falls back to a local tally only when
+    // no ScoreController is wired.
     public void AddScore(int points)
     {
         if (scoreController != null)

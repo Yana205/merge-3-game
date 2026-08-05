@@ -15,6 +15,14 @@ public class InputHandler : MonoBehaviour
 
     public event Action OnGameOver;
 
+    /// <summary>
+    /// Raised after any successful move — merge or slide alike — and before the
+    /// jam check runs. LevelManager listens and spawns the move's gems; how many
+    /// and at what tier is a difficulty decision, which does not belong in the
+    /// input layer.
+    /// </summary>
+    public event Action OnMoveCompleted;
+
     private Item _draggedItem;
     private Cell _sourceCell;
     private Vector2 _dragOffset;
@@ -126,11 +134,11 @@ public class InputHandler : MonoBehaviour
             if (_sourceCell != null)
                 _draggedItem.transform.position = _sourceCell.transform.position;
         }
-        // If the merge completed the level, input is locked mid-call — skip the
-        // post-move spawn / game-over check so a won board stays frozen and clean.
+        // If something locked input mid-call, skip the post-move spawn and
+        // game-over check so a frozen board stays frozen and clean.
         else if (_inputEnabled)
         {
-            SpawnAndCheckGameOver();
+            AfterMove();
         }
 
         _draggedItem = null;
@@ -138,11 +146,11 @@ public class InputHandler : MonoBehaviour
         _isDragging = false;
     }
 
-    void SpawnAndCheckGameOver()
+    // Order is load-bearing: the spawn has to land before the jam check, or the
+    // check judges a board that is one move out of date.
+    void AfterMove()
     {
-        Cell emptyCell = gridManager.GetRandomEmptyCell();
-        if (emptyCell != null)
-            gridManager.SpawnItem(emptyCell);
+        OnMoveCompleted?.Invoke();
 
         if (gridManager.IsFull() && !gridManager.HasAnyValidMerge())
         {

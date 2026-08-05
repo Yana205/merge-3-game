@@ -108,10 +108,10 @@ public class LeaderboardUI : MonoBehaviour
         }
     }
 
-    // "1.   Score 1240      Level 7"
+    // "1.   Score 1240"
     string BuildRowText(int rank, RunEntry run)
     {
-        return string.Format("{0,2}.   Score {1,-6}   Level {2}", rank + 1, run.score, run.level);
+        return string.Format("{0,2}.   Score {1}", rank + 1, run.score);
     }
 
     void PositionRow(RectTransform row, int index)

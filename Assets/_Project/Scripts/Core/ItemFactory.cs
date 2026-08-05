@@ -1,9 +1,10 @@
 using UnityEngine;
 
 // POOL DESIGN (carried over from Lesson 3's ItemPoolManager, now retired):
-// WHAT: gem Items — one spawned per move, two released + one taken per merge.
-// SIZE: 32 prewarmed (ServiceLoader.LoadAsync) — 5x5 board = 25 cells max,
-//       rounded up for merge churn; larger LevelData grids covered by growth.
+// WHAT: gem Items — up to three spawned per move (DifficultyCurve raises the
+//       count with the score), two released + one taken per merge.
+// SIZE: 32 prewarmed (ServiceLoader.LoadAsync) — a 6x6 board is 36 cells, so a
+//       full board plus merge churn is covered by growth rather than prewarm.
 // STATIC OR DYNAMIC: dynamic — MonoBehaviourPool<T>.Get() grows on demand, so
 //       bigger boards never break; prewarm just avoids startup hitches.
 // RESET ON RELEASE: Item.ResetForPool() clears Tier, GemData, sprite, color,

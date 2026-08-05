@@ -261,7 +261,7 @@ public class GridManager : MonoBehaviour
     }
 
     // Counts distinct adjacent same-tier pairs (each unordered pair once).
-    // LevelManager uses this to enforce LevelData.guaranteedPairs at board setup.
+    // LevelManager uses this to guarantee the opening board has merge pairs.
     public int CountAdjacentSameTierPairs()
     {
         if (grid == null) return 0;

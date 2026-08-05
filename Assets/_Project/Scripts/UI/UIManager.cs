@@ -9,7 +9,11 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI targetText;
     public GameObject gameOverPanel;
 
-    [Header("Depth Banner (assign in Inspector)")]
+    // Kept wired but currently uncalled: the endless board has no stages left to
+    // announce. The CanvasGroup is already hooked up in the scene, so retaining
+    // the seam costs nothing and saves re-wiring it by hand for the next thing
+    // worth announcing (a new personal best, a big combo).
+    [Header("Banner (assign in Inspector)")]
     public CanvasGroup levelBanner;
     public TextMeshProUGUI levelBannerText;
     [SerializeField] private float bannerHold = 0.9f;
@@ -19,9 +23,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private LevelManager levelManager;
 
     private Coroutine _bannerRoutine;
-    private int _level = 1;
     private int _score;
-    private int _target;
+    private int _best;
 
     // Subscribe in Awake so we never miss the initial OnScoreChanged
     // fired from LevelManager.Start when services are already ready.
@@ -30,7 +33,6 @@ public class UIManager : MonoBehaviour
         if (levelManager != null)
         {
             levelManager.OnScoreChanged += UpdateScore;
-            levelManager.OnLevelChanged += UpdateLevel;
         }
         else
         {
@@ -43,7 +45,6 @@ public class UIManager : MonoBehaviour
         if (levelManager != null)
         {
             levelManager.OnScoreChanged -= UpdateScore;
-            levelManager.OnLevelChanged -= UpdateLevel;
         }
     }
 
@@ -63,7 +64,8 @@ public class UIManager : MonoBehaviour
         if (targetText != null) targetText.gameObject.SetActive(visible);
     }
 
-    // Brief "Level N" banner shown when a level starts.
+    // Brief fading banner across the middle of the screen. See the field comment
+    // above — no caller right now.
     public void ShowLevelBanner(string text)
     {
         if (levelBanner == null || levelBannerText == null)
@@ -98,16 +100,10 @@ public class UIManager : MonoBehaviour
     }
 
     // FUTURE: add animated score counter
-    public void UpdateScore(int currentScore, int targetScore)
+    public void UpdateScore(int currentScore, int bestScore)
     {
         _score = currentScore;
-        _target = targetScore;
-        RefreshHud();
-    }
-
-    public void UpdateLevel(int level)
-    {
-        _level = level;
+        _best = bestScore;
         RefreshHud();
     }
 
@@ -117,16 +113,16 @@ public class UIManager : MonoBehaviour
             scoreText.text = "Score: " + _score;
 
         if (targetText != null)
-            targetText.text = "DEPTH " + _level + "   ·   NEXT " + _target;
+            targetText.text = "Best  " + _best;
     }
 
-    public void ShowGameOver(int score, int levelReached)
+    public void ShowGameOver(int score, int bestScore)
     {
         if (gameOverPanel == null) return;
 
         var text = gameOverPanel.transform.Find("GameOverText")?.GetComponent<TextMeshProUGUI>();
         if (text != null)
-            text.text = "GAME OVER\n\nSCORE  " + score + "\nDEPTH  " + levelReached;
+            text.text = "GAME OVER\n\nSCORE  " + score + "\nBEST  " + bestScore;
 
         gameOverPanel.SetActive(true);
     }
