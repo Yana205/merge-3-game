@@ -28,11 +28,30 @@ public class LeaderboardUI : MonoBehaviour
 
     private readonly List<RectTransform> _rows = new();
 
+    private bool _initialised;
+
     void Awake()
     {
+        Initialise();
+    }
+
+    /// <summary>
+    /// One-time setup, deliberately not left to Awake alone.
+    /// </summary>
+    /// <remarks>
+    /// This component lives on the panel it controls, and the panel is authored
+    /// inactive — so Awake does not run at scene load, it runs *inside* the
+    /// SetActive(true) in <see cref="Show"/>. Anything that hid the panel from
+    /// Awake therefore closed it again on the very frame it opened. Show() calls
+    /// this first instead, and the guard makes the later Awake a no-op.
+    /// </remarks>
+    void Initialise()
+    {
+        if (_initialised) return;
+        _initialised = true;
+
         if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
         if (_rowTemplate != null) _rowTemplate.gameObject.SetActive(false);
-        if (_panel != null) _panel.SetActive(false);
     }
 
     public void Show()
@@ -43,6 +62,7 @@ public class LeaderboardUI : MonoBehaviour
             return;
         }
 
+        Initialise();
         BuildRows();
         _panel.SetActive(true);
     }

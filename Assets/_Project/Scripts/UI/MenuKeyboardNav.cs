@@ -4,12 +4,16 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Up/Down + Enter navigation for the title menu, matching what the footer bar
-/// advertises. Selection is pushed through the EventSystem rather than tracked
-/// privately, so each Button's own SpriteSwap `selectedSprite` (the kit's
-/// button_selected frame) does the highlighting — no sprite juggling here.
+/// Up/Down + Enter navigation for a column of menu entries. Selection is pushed
+/// through the EventSystem rather than tracked privately, so a Button's own
+/// transition (if it has one) stays authoritative — no sprite juggling here.
 ///
-/// The pointer stays fully usable: hovering a button moves the selection to it,
+/// One instance drives one panel, so the title, the game-over panel and the
+/// leaderboard each get their own. Panels that stack declare the ones that can
+/// open on top of them in <see cref="_blockedBy"/>, which is what stops an Enter
+/// meant for the leaderboard's Close from also firing the title entry behind it.
+///
+/// The pointer stays fully usable: hovering an entry moves the selection to it,
 /// so mouse and keyboard never disagree about what is highlighted.
 /// </summary>
 public class MenuKeyboardNav : MonoBehaviour
@@ -24,16 +28,28 @@ public class MenuKeyboardNav : MonoBehaviour
     [Tooltip("Pointer sprite parked to the left of the selected button.")]
     [SerializeField] private RectTransform _cursor;
 
+    [Tooltip("Panels that open on top of this one. While any is active this menu " +
+             "ignores input, so a keypress only ever reaches the topmost panel.")]
+    [SerializeField] private GameObject[] _blockedBy;
+
+    [Tooltip("Optional. Invoked by Escape / Backspace — the 'get me out' entry.")]
+    [SerializeField] private Button _cancelButton;
+
     [Header("Kit metrics")]
     [Tooltip("Gap between the button's left edge and the cursor.")]
     [SerializeField] private float _cursorGap = 40f;
 
     [Header("Kit label colours")]
-    [SerializeField] private Color _labelNormal = new Color(0.647f, 0.949f, 0.925f);   // #A5F2EC
-    [SerializeField] private Color _labelSelected = new Color(0.937f, 1f, 0.988f);     // #EFFFFC
+    [Tooltip("Matches the gold the banner's own PRESS START is drawn in.")]
+    [SerializeField] private Color _labelNormal = new Color(0.961f, 0.773f, 0.259f);   // #F5C542
+    [SerializeField] private Color _labelSelected = new Color(1f, 0.953f, 0.769f);     // #FFF3C4
 
     private int _index;
-    private bool _wasPanelActive;
+
+    // "Was this menu actually taking input last frame?" — false while the panel is
+    // hidden AND while something is stacked on top of it, so the selection is
+    // re-asserted both when the panel returns and when the modal above it closes.
+    private bool _wasActionable;
 
     void Start()
     {
@@ -55,15 +71,16 @@ public class MenuKeyboardNav : MonoBehaviour
 
     void Update()
     {
-        bool active = _menuPanel != null && _menuPanel.activeInHierarchy;
+        bool actionable = _menuPanel != null && _menuPanel.activeInHierarchy && !IsBlocked();
 
-        // Re-assert selection when the menu comes back (e.g. after Return to Menu),
-        // otherwise the EventSystem keeps pointing at a now-hidden button.
-        if (active && !_wasPanelActive)
+        // Re-assert selection when this menu takes the keyboard back — after
+        // Return to Menu, or after the panel stacked on top of it closes.
+        // Otherwise the EventSystem keeps pointing at a now-hidden button.
+        if (actionable && !_wasActionable)
             Select(0);
-        _wasPanelActive = active;
+        _wasActionable = actionable;
 
-        if (!active || _entries == null || _entries.Length == 0) return;
+        if (!actionable || _entries == null || _entries.Length == 0) return;
 
         if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
             Step(-1);
@@ -72,6 +89,20 @@ public class MenuKeyboardNav : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)
                  || Input.GetKeyDown(KeyCode.Space))
             Confirm();
+        else if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace))
+            Cancel();
+    }
+
+    // A panel stacked on top owns the keyboard for as long as it is open.
+    private bool IsBlocked()
+    {
+        if (_blockedBy == null) return false;
+
+        for (int i = 0; i < _blockedBy.Length; i++)
+            if (_blockedBy[i] != null && _blockedBy[i].activeInHierarchy)
+                return true;
+
+        return false;
     }
 
     // Wraps around, and skips over any entry that is missing or disabled.
@@ -134,5 +165,11 @@ public class MenuKeyboardNav : MonoBehaviour
         var button = _entries[_index];
         if (button != null && button.interactable)
             button.onClick.Invoke();
+    }
+
+    private void Cancel()
+    {
+        if (_cancelButton != null && _cancelButton.interactable)
+            _cancelButton.onClick.Invoke();
     }
 }

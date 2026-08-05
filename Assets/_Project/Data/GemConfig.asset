@@ -21,27 +21,27 @@ MonoBehaviour:
   - gemName: Ruby
     hardness: 2
     tintColor: {r: 0.851, g: 0.271, b: 0.353, a: 1}
-    sprite: {fileID: 21300000, guid: 920977cfb67164f8b9a269cd57e04562, type: 3}
+    sprite: {fileID: 21300000, guid: 60a070c6642da4d7280ea93986d81dd2, type: 3}
     scoreValue: 20
   - gemName: Emerald
     hardness: 3
     tintColor: {r: 0.384, g: 0.902, b: 0.569, a: 1}
-    sprite: {fileID: 21300000, guid: 49388e77319624b37bb3047e65411a3b, type: 3}
+    sprite: {fileID: 21300000, guid: 10c7b6a135bd44016b7ff79cd33e04f0, type: 3}
     scoreValue: 30
   - gemName: Sapphire
     hardness: 4
     tintColor: {r: 0.345, g: 0.675, b: 0.902, a: 1}
-    sprite: {fileID: 21300000, guid: 7c9dff7fac91f47df8680ff51b214dfe, type: 3}
+    sprite: {fileID: 21300000, guid: 144dd00b2edc84ba7a7dc772fddc3aa5, type: 3}
     scoreValue: 40
   - gemName: Citrine
     hardness: 5
     tintColor: {r: 0.902, g: 0.722, b: 0.306, a: 1}
-    sprite: {fileID: 21300000, guid: cd8b869fcacb64ce7b12195f688b6f9c, type: 3}
+    sprite: {fileID: 21300000, guid: fd6b59430a5a3440aa75618ee7eee271, type: 3}
     scoreValue: 50
   - gemName: Rhodochrosite
     hardness: 6
     tintColor: {r: 0.902, g: 0.376, b: 0.749, a: 1}
-    sprite: {fileID: 21300000, guid: 99da47a11fc064dabac9f73e7202a77a, type: 3}
+    sprite: {fileID: 21300000, guid: 74843b2f8412c4fe0b1768d378c56c6d, type: 3}
     scoreValue: 60
   - gemName: Diamond
     hardness: 7
