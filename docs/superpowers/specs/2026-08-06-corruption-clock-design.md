@@ -41,7 +41,7 @@ equilibrium." The system was tuned to the exact point where the board cannot dra
 ```
 CORRUPTION: a meter, 0 → 20, shown in the HUD.
 
-  Any move            +2 corruption
+  Any move            +3 corruption
   A merge             −(resulting tier) corruption
   Meter reaches 20    → one RED crystal erupts; meter resets to 0
 
@@ -53,10 +53,17 @@ One rule carries the game: **the tier you make is the corruption you clear.**
 
 | Move | Corruption | Tiles |
 |---|---|---|
-| Slide | +2 | ±0 |
-| Merge → tier 2 | ±0 | ±0 |
-| Merge → tier 3 | −1 | ±0 |
-| Merge → tier 5 | −3 | ±0 |
+| Slide | +3 | ±0 |
+| Merge → tier 2 | +1 | ±0 |
+| Merge → tier 3 | ±0 | ±0 |
+| Merge → tier 5 | −2 | ±0 |
+
+> **The rate must exceed the smallest possible drain.** This started at +2, which is
+> exactly the drain of the cheapest merge (1+1 → tier 2). That made every merge
+> net-zero on the clock, so a player who only ever merged would hold corruption
+> still forever and never see a single red — the whole pressure system would sit
+> dormant. Caught in play mode: `cheapest merge: 8 -> 8 (net 0)`. At +3 the same
+> case reads `12 -> 13 (net +1)`.
 
 Basic merging treads water. Big merges buy real relief. Shuffling costs time on the
 clock but not board space. The player fights a *pace*, never a flood.
@@ -88,8 +95,8 @@ silently discard the eruption.
 
 ### 2.3 The bomb
 
-A red that reaches `Item.MaxTierFor(GemFamily.Red)` no longer becomes dead weight. It
-becomes an **armed bomb**:
+A red that reaches the top of its ladder no longer becomes dead weight. It becomes an
+**armed bomb**:
 
 - It sits on the board until the player taps it. There is no timer on it.
 - Tapping detonates: every item in its 3×3 neighbourhood is destroyed, **including
@@ -99,6 +106,20 @@ becomes an **armed bomb**:
 
 This is the whole risk/reward loop: the player chooses *where* to grow the red chain
 knowing they will have to sacrifice its neighbours, and chooses *when* to spend it.
+
+> **Bombs arm one rung below the ladder top, not at it.** Red ends at tier 5, and
+> every rung doubles the reds required — arming at the literal top costs **16**
+> tier-1 reds, more than a realistic run will ever produce, making the bomb a
+> mechanic players only read about. One rung down costs 8. The dial is
+> `BombController.armTiersBelowMax` (default 1); 0 gives the literal top.
+>
+> This forces one rule change: **`MergeManager` refuses to merge a live bomb.**
+> Without it a player could merge two tier-4 bombs into a tier-5 red and defuse
+> both — spending sixteen reds to destroy the payoff they were building toward.
+> Two more places must agree with that refusal or they contradict it:
+> `GridManager.HasAnyValidMerge` (a dead board would read as playable and the run
+> would hang instead of ending) and the green drag highlight in `InputHandler`
+> (it would light up a bomb neighbour and then refuse the drop).
 
 Tapping a bomb is not a move: it raises no `OnMoveCompleted`, so nothing spawns
 afterwards — same reasoning as `InputHandler.AfterShatter()` at line 172-178. The jam
@@ -222,15 +243,46 @@ New bus events: `MoveCompleted`, `CorruptionChanged(current, max)`,
 
 Starting values, expected to move once playable:
 
-| Dial | Start | Effect |
+| Dial | Shipped | Effect |
 |---|---|---|
-| Corruption per move | 2 | Higher = faster clock |
-| Eruption threshold | 20 | ≈10 idle moves to a red |
-| Merge drain | = resulting tier | Higher multiplier = big merges matter more |
-| Corruption thresholds | `{700, 2500}` | Where the clock speeds up |
-| Blast radius | 3×3 | Payoff size |
+| `basePerMove` | 3 | Higher = faster clock. Must stay **above 2** (see §2) |
+| `threshold` | 20 | ≈7 idle moves to a red |
+| `drainPerMergedTier` | 1 | Higher = big merges matter more |
+| `_rateThresholds` | `{600, 2000}` | Where the clock speeds up (→ 4/move, 5/move) |
+| `armTiersBelowMax` | 1 | 1 → 8 reds per bomb; 0 → 16 |
+| `blastRadius` | 1 (a 3×3) | Payoff size |
 
-## 7. Testing
+**These live in the scene, not in the source.** The components were added to
+`mainGame.unity` before the defaults were retuned, and Unity field initializers only
+apply to newly-added components — an already-serialized component keeps its stored
+values. Changing a default in the `.cs` will *not* change what the game reads. Edit
+the values in the inspector, or via `SerializedObject`, and re-verify at runtime.
+
+## 7. Verified in play mode
+
+The project has no test assemblies, so verification was done by driving the real
+event bus in play mode and reading state back. Results:
+
+| Check | Result |
+|---|---|
+| Clock ticks and erupts | 10 idle moves → `0→2→…→18→` red erupts, meter resets |
+| Merge drain | simulated tier-4 merge: `8 → 4` (exactly −4) |
+| Rate ramp | `PerMoveAt(0/600/2000) = 3/4/5` |
+| Cheapest-merge floor | `12 → 13` (net +1 — clock advances under perfect play) |
+| Reds cluster | 6 reds erupted, **6/6** had a red neighbour |
+| Bomb arms | tier 4 of a 5-tier ladder, `HasArmedBomb() = true` |
+| Bombs unmergeable | `TryMerge(bombA, bombB) = false`, both stay armed |
+| Detonation | cleared all 7 occupied cells in the 3×3; 3×3 empty after |
+| Chained bombs | bomb B caught in A's blast is disarmed; `HasArmedBomb() = false` |
+| Purge | corruption `5 → 0` on detonation |
+| Opening board | 9 empty / 27 occupied, 63 mergeable pairs, not jammed |
+| SHATTER at 0 charges | `enabled = false` + `unity-disabled` class |
+| SHATTER at 2 charges | enabled, `--ready` + `--pulse` (entry flash) |
+| SHATTER armed | `--armed`, pulse cleared, text `TAP A GEM` |
+| SHATTER back to 0 | disabled, pulse removed |
+| Meter at 15/20 | `width: 75%`, colour `RGBA(0.935, 0.525, 0.250)` |
+
+## 8. Testing (not yet written)
 
 EditMode, pure logic, no scene:
 

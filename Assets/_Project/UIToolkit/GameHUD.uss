@@ -122,19 +122,90 @@ Button:active {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }
 
+/* --- Corruption meter ---------------------------------------------------
+   The run's clock. The track is a sunken slot; the fill's width and colour are
+   both driven from UIController, because the colour ramps continuously
+   (cyan -> amber -> red) and USS has no way to express a gradient over a
+   bound value. */
+
+.meter-track {
+    height: 10px;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    background-color: rgba(0, 0, 0, 0.45);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(0, 0, 0, 0.6);
+    border-right-color: rgba(0, 0, 0, 0.6);
+    border-top-color: rgba(0, 0, 0, 0.6);
+    border-bottom-color: rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.meter-fill {
+    height: 100%;
+    width: 0%;
+    background-color: rgb(90, 214, 208);
+    /* Eased so a merge's drain reads as the bar RECEDING — an instant jump
+       would not register as the player having pushed the threat back. */
+    transition-property: width, background-color;
+    transition-duration: 0.25s, 0.25s;
+    transition-timing-function: ease-out;
+}
+
+.numeral--warn {
+    color: rgb(232, 122, 106);
+}
+
 /* --- Pickaxe -----------------------------------------------------------
    Three states the player must be able to tell apart at a glance: empty
    (nothing to spend), ready (a charge banked), armed (the next tap shatters).
-   Armed borrows the pressed frame so the button visibly stays down — the board
-   is in a mode, and a flat button would not say so. */
 
-.pickaxe-button--empty {
-    opacity: 0.35;
+   Empty is genuinely DISABLED, not merely dimmed. It used to be dim but still
+   clickable, so a click on it ran TryArm(), got false back, and did nothing
+   visible — a control that accepts input and silently ignores it teaches the
+   player that it is broken.
+
+   Ready pulses. UI Toolkit has no keyframe animation, so UIController toggles
+   --pulse on a scheduler and the transition below does the easing. */
+
+.pickaxe-button {
+    transition-property: color, opacity, scale;
+    transition-duration: 0.35s, 0.35s, 0.35s;
+    transition-timing-function: ease-in-out;
 }
 
+.pickaxe-button--empty {
+    opacity: 0.3;
+}
+
+/* SetEnabled(false) also suppresses :hover and :active, so a disabled button
+   cannot light up under the cursor and promise something it will not do. */
+.pickaxe-button:disabled {
+    opacity: 0.3;
+    color: rgb(120, 150, 148);
+}
+
+.pickaxe-button--ready {
+    color: rgb(245, 197, 66);
+}
+
+/* Toggled on and off by UIController's scheduler. Only ever applied in the
+   ready state — a control that pulses in every state attracts nothing. */
+.pickaxe-button--pulse {
+    color: rgb(255, 246, 219);
+    scale: 1.05 1.05;
+}
+
+/* Last, so it wins over --ready and --pulse at equal specificity. Armed borrows
+   the pressed frame so the button visibly stays down — the board is in a mode,
+   and a flat button would not say so. */
 .pickaxe-button--armed {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
     color: rgb(245, 197, 66);
+    scale: 1 1;
 }
 
 /* The jam prompt. Gold on the panel, hidden until the board actually jams with

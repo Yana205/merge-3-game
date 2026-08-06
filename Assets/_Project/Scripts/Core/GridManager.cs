@@ -234,6 +234,52 @@ public class GridManager : MonoBehaviour
         return emptyCells[Random.Range(0, emptyCells.Count)];
     }
 
+    /// <summary>
+    /// A random empty cell touching <paramref name="origin"/>, or null if it is
+    /// boxed in. Both spawn paths want this for readability: a cyan crystal appears
+    /// where the player is already looking (the merge they just made), and a red
+    /// erupts beside an existing red so corruption visibly SPREADS from a site
+    /// rather than speckling the board at random.
+    ///
+    /// The red case is not only cosmetic — reds only merge with reds, so a chain
+    /// whose links never land near each other can never be climbed, and the bomb
+    /// at the top of it would be unreachable.
+    /// </summary>
+    public Cell GetRandomEmptyCellAdjacentTo(Cell origin)
+    {
+        if (grid == null || origin == null) return null;
+
+        var candidates = new List<Cell>();
+        for (int dr = -1; dr <= 1; dr++)
+            for (int dc = -1; dc <= 1; dc++)
+            {
+                if (dr == 0 && dc == 0) continue;
+                Cell cell = GetCell(origin.row + dr, origin.col + dc);
+                if (cell != null && !cell.IsOccupied())
+                    candidates.Add(cell);
+            }
+
+        if (candidates.Count == 0) return null;
+        return candidates[Random.Range(0, candidates.Count)];
+    }
+
+    /// <summary>
+    /// Every occupied cell holding a gem of <paramref name="family"/>. Allocates a
+    /// fresh list per call; used once per eruption, which is at most once every few
+    /// moves, so this is not on a hot path.
+    /// </summary>
+    public List<Cell> FindCellsWithFamily(GemFamily family)
+    {
+        var found = new List<Cell>();
+        if (grid == null) return found;
+
+        foreach (Cell cell in grid)
+            if (cell != null && cell.IsOccupied() && cell.CurrentItem.Family == family)
+                found.Add(cell);
+
+        return found;
+    }
+
     // The jam check. It MUST compare family alongside tier: a full board of red 3s
     // sitting beside standard 3s has no legal move, and a tier-only check would
     // call it playable — the run would hang instead of ending.
@@ -251,6 +297,11 @@ public class GridManager : MonoBehaviour
                 int tier = cell.CurrentItem.Tier;
                 GemFamily family = cell.CurrentItem.Family;
                 if (tier >= Item.MaxTierFor(family)) continue;
+                // A live bomb arms below the top of its ladder, so it clears the
+                // tier test above while MergeManager refuses to merge it. Counting
+                // one here would report a dead board as playable and the run would
+                // hang instead of ending.
+                if (cell.CurrentItem.IsArmedBomb) continue;
 
                 for (int dr = -1; dr <= 1; dr++)
                 {
@@ -260,7 +311,8 @@ public class GridManager : MonoBehaviour
                         Cell neighbour = GetCell(r + dr, c + dc);
                         if (neighbour != null && neighbour.IsOccupied()
                             && neighbour.CurrentItem.Tier == tier
-                            && neighbour.CurrentItem.Family == family)
+                            && neighbour.CurrentItem.Family == family
+                            && !neighbour.CurrentItem.IsArmedBomb)
                             return true;
                     }
                 }

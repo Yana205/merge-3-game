@@ -29,6 +29,13 @@ public class MergeManager : MonoBehaviour
         // maxed red must be rejected well below the standard MaxTier.
         if (itemA.Tier >= Item.MaxTierFor(itemA.Family)) return false;
 
+        // A live bomb is not a gem any more, it is a button. BombController can arm
+        // below the top of the red ladder (the top costs 16 tier-1 reds, which most
+        // runs never reach), and without this a player could merge two bombs into a
+        // higher red and defuse both — spending sixteen reds to destroy the payoff
+        // they were building toward.
+        if (itemA.IsArmedBomb || itemB.IsArmedBomb) return false;
+
         Cell cellA = gridManager.FindCellWithItem(itemA);
         Cell cellB = gridManager.FindCellWithItem(itemB);
 

@@ -49,6 +49,28 @@ public static class GameEvents
     /// Item and its Cell, read before either is torn down.</summary>
     public static event Action<Item, Cell> TileShattered;
 
+    /// <summary>
+    /// Raised after EVERY successful move — merge or slide alike. This is the
+    /// corruption clock's tick: the whole point of the mechanic is that shuffling
+    /// costs you time even though it costs you no board space, so a slide must
+    /// reach CorruptionController exactly like a merge does.
+    ///
+    /// Distinct from <see cref="InputHandler.OnMoveCompleted"/>, which now fires
+    /// only for merges because it drives the cyan spawn.
+    /// </summary>
+    public static event Action MoveCompleted;
+
+    /// <summary>Raised whenever the corruption meter moves. Args: (current, max).</summary>
+    public static event Action<int, int> CorruptionChanged;
+
+    /// <summary>Raised when a red crystal reaches the top of its ladder and becomes
+    /// a live bomb. Arg: the armed Item.</summary>
+    public static event Action<Item> BombArmed;
+
+    /// <summary>Raised after a bomb detonates. Args: the blast's centre Cell and how
+    /// many items it cleared (the bomb itself included).</summary>
+    public static event Action<Cell, int> BombDetonated;
+
     // ---- Raisers -----------------------------------------------------------
     // Publishers call these instead of touching the events directly, so the
     // "?.Invoke() everywhere" rule lives in exactly one place.
@@ -69,6 +91,14 @@ public static class GameEvents
 
     public static void RaiseTileShattered(Item item, Cell cell) => TileShattered?.Invoke(item, cell);
 
+    public static void RaiseMoveCompleted() => MoveCompleted?.Invoke();
+
+    public static void RaiseCorruptionChanged(int current, int max) => CorruptionChanged?.Invoke(current, max);
+
+    public static void RaiseBombArmed(Item bomb) => BombArmed?.Invoke(bomb);
+
+    public static void RaiseBombDetonated(Cell centre, int cleared) => BombDetonated?.Invoke(centre, cleared);
+
     /// <summary>
     /// Static events keep their subscriber lists across Editor play sessions when
     /// "Enter Play Mode / Reload Domain" is disabled, silently leaking handlers
@@ -86,5 +116,9 @@ public static class GameEvents
         PickaxeChanged = null;
         JamRescuePending = null;
         TileShattered = null;
+        MoveCompleted = null;
+        CorruptionChanged = null;
+        BombArmed = null;
+        BombDetonated = null;
     }
 }

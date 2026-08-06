@@ -1,30 +1,32 @@
 using UnityEngine;
 
 /// <summary>
-/// The entire difficulty model of the endless run, expressed as a pure function of
-/// the running score. No Unity lifecycle, no state — feed it a score and it tells
-/// you how many gems to spawn this move and what tier each one should be.
+/// What CYAN fodder looks like at a given score, expressed as a pure function of the
+/// running score. No Unity lifecycle, no state — feed it a score and it tells you
+/// what tier the next crystal should be.
 ///
 /// Held as a serialized field on <see cref="LevelManager"/> rather than as a
 /// ScriptableObject, so the curve is tunable in the inspector with no asset to
 /// create, wire, or keep in sync.
 ///
-/// Why spawn count is the master lever: the board is 6x6 = 36 cells, a merge is
-/// net -1 tile and a spawn is +1. So 1 spawn per move is equilibrium, 2 costs you
-/// a cell per merge, and 3 is a death spiral. Everything else is seasoning.
+/// THIS CLASS NO LONGER OWNS DIFFICULTY. It used to: it decided how many gems
+/// arrived per move and whether each was red. Both are gone.
+///
+///  - Spawn COUNT is gone because it was the bug. The board is 6x6 = 36 cells, a
+///    merge is net -1 tile and a spawn is +1, so one spawn per move made a merge
+///    net-zero (the board could never drain) and made a slide net-positive
+///    (repositioning was strictly punished). Cyan is now exactly one crystal per
+///    MERGE, and slides are free.
+///  - Family rolling is gone because a red that arrives on a dice roll is variance,
+///    not a decision. Reds now come only from <see cref="CorruptionController"/> —
+///    a clock the player winds themselves.
+///
+/// What is left is the tier of the next cyan gem, which is genuinely a difficulty
+/// question and is still tuned here.
 /// </summary>
 [System.Serializable]
 public class DifficultyCurve
 {
-    [Header("Spawn Pressure")]
-    [Tooltip("Scores at which one more gem per move is added. Starts at 1 gem; " +
-             "each threshold passed adds another. Order does not matter.")]
-    // Pushed out from {350, 1200}: the red chain now leaves permanently dead cells
-    // behind, so the board fills from two directions at once. Two gems a move
-    // arriving at 350 stacked on top of that turned the mid-game into a scramble
-    // rather than a puzzle.
-    [SerializeField] private int[] _spawnCountThresholds = { 700, 2500 };
-
     [Header("Spawn Tiers")]
     [Tooltip("Scores at which one more spawn tier unlocks. Starts at tier 1 only; " +
              "each threshold passed raises the ceiling by one.")]
@@ -41,24 +43,6 @@ public class DifficultyCurve
     [Min(1)]
     [SerializeField] private int _headroomBelowMaxTier = 3;
 
-    [Header("Red Chain")]
-    [Tooltip("Score at which red gems start appearing at all. Below this the board " +
-             "is pure standard gems, which keeps the opening minutes teachable.")]
-    [Min(0)]
-    [SerializeField] private int _redUnlockScore = 400;
-
-    [Tooltip("Share of spawns that are red once unlocked. Reds only merge with " +
-             "reds and their ladder dead-ends, so every red is a cell the player " +
-             "may never get back — keep this low.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float _redSpawnChance = 0.12f;
-
-    /// <summary>Gems to spawn after a successful move at this score. Always >= 1.</summary>
-    public int SpawnCountAt(int score)
-    {
-        return 1 + CountPassed(_spawnCountThresholds, score);
-    }
-
     /// <summary>Highest tier that may spawn at this score, clamped clear of the ladder top.</summary>
     public int TierCeilingAt(int score)
     {
@@ -68,8 +52,10 @@ public class DifficultyCurve
     }
 
     /// <summary>
-    /// Roll one spawn tier for this score. Call once per gem — three gems spawning
-    /// on the same move each get their own roll, not one shared result.
+    /// Roll one cyan spawn's tier for this score. Reds never come through here —
+    /// they always enter at tier 1, because a red spawned mid-ladder needs two more
+    /// reds of that exact tier to ever leave the board, which the player cannot
+    /// influence. Entering at the bottom keeps every red climbable.
     /// </summary>
     public int PickTierAt(int score)
     {
@@ -98,31 +84,6 @@ public class DifficultyCurve
         }
 
         return 1;
-    }
-
-    /// <summary>
-    /// Roll one spawn's family. Call once per gem, alongside <see cref="PickTierAt"/>.
-    /// Returns Standard until the red unlock score, and Standard always if the red
-    /// ladder is unwired — so a half-configured GemConfig degrades to the original
-    /// single-chain game rather than spawning gems with no art.
-    /// </summary>
-    public GemFamily PickFamilyAt(int score)
-    {
-        if (score < _redUnlockScore) return GemFamily.Standard;
-        if (Item.MaxTierFor(GemFamily.Red) <= 0) return GemFamily.Standard;
-
-        return Random.value < _redSpawnChance ? GemFamily.Red : GemFamily.Standard;
-    }
-
-    /// <summary>
-    /// Tier for a freshly spawned gem of <paramref name="family"/>. Reds always
-    /// enter at tier 1: a red spawned mid-ladder needs two more reds of that exact
-    /// tier to ever leave the board, which the player cannot influence. Entering at
-    /// the bottom keeps every red climbable, so a jam is the player's doing.
-    /// </summary>
-    public int PickTierAt(int score, GemFamily family)
-    {
-        return family == GemFamily.Red ? 1 : PickTierAt(score);
     }
 
     // How many thresholds this score has reached. Counts rather than scans in

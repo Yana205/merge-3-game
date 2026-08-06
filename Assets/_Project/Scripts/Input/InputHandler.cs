@@ -18,13 +18,22 @@ public class InputHandler : MonoBehaviour
              "game over. Leave empty and the board plays exactly as it did before.")]
     [SerializeField] private PickaxeController pickaxe;
 
+    [Tooltip("Optional. When assigned, a tap on a maxed red crystal detonates it, " +
+             "and a live bomb counts as a legal move so the run does not end while " +
+             "one is still on the board.")]
+    [SerializeField] private BombController bombs;
+
     public event Action OnGameOver;
 
     /// <summary>
-    /// Raised after any successful move — merge or slide alike — and before the
-    /// jam check runs. LevelManager listens and spawns the move's gems; how many
-    /// and at what tier is a difficulty decision, which does not belong in the
-    /// input layer.
+    /// Raised after a successful MERGE, and before the jam check runs. LevelManager
+    /// listens and spawns the move's cyan crystal.
+    ///
+    /// This used to fire for slides too, which is what made repositioning strictly
+    /// punishing: a slide removes no tile and used to add one, so the only move that
+    /// should cost nothing but position cost a cell. Slides now cost time on the
+    /// corruption clock instead — see <see cref="GameEvents.MoveCompleted"/>, which
+    /// still fires for every move.
     /// </summary>
     public event Action OnMoveCompleted;
 
@@ -71,6 +80,21 @@ public class InputHandler : MonoBehaviour
             if (col == null) continue;
             if (col.TryGetComponent(out Item item))
             {
+                // A live bomb wins over everything, including an armed pickaxe.
+                // Detonating is free and shattering costs a charge, so letting the
+                // pickaxe consume this tap would silently spend a rescue on the one
+                // gem that did not need it. A bomb is also unmergeable and
+                // undraggable, so there is nothing else the tap could have meant.
+                if (item.IsArmedBomb && bombs != null)
+                {
+                    if (bombs.Detonate(item) > 0)
+                    {
+                        pickaxe?.Disarm();
+                        AfterDetonation();
+                    }
+                    return;
+                }
+
                 // An armed pickaxe consumes the tap: shatter instead of drag. No
                 // drag state is set, so this never falls through to HandlePointerUp.
                 if (pickaxe != null && pickaxe.IsArmed)
@@ -128,12 +152,14 @@ public class InputHandler : MonoBehaviour
             targetCell = gridManager.FindCellWithItem(targetItem);
 
         bool success = false;
+        bool merged = false;
 
         if (_sourceCell != null && targetCell != null && gridManager.AreAdjacent(_sourceCell, targetCell))
         {
             if (targetItem != null)
             {
                 success = mergeManager.TryMerge(_draggedItem, targetItem);
+                merged = success;
             }
             else if (!targetCell.IsOccupied())
             {
@@ -153,7 +179,7 @@ public class InputHandler : MonoBehaviour
         // game-over check so a frozen board stays frozen and clean.
         else if (_inputEnabled)
         {
-            AfterMove();
+            AfterMove(merged);
         }
 
         _draggedItem = null;
@@ -161,11 +187,30 @@ public class InputHandler : MonoBehaviour
         _isDragging = false;
     }
 
-    // Order is load-bearing: the spawn has to land before the jam check, or the
-    // check judges a board that is one move out of date.
-    void AfterMove()
+    // Order is load-bearing on both counts.
+    //
+    // The clock ticks first, so an eruption this move lands before the jam check
+    // judges the board. And the tick fires for EVERY move while the cyan spawn
+    // fires only for merges — that asymmetry is the whole point of the redesign:
+    // a slide costs you time but not space, so repositioning is finally worth doing.
+    void AfterMove(bool wasMerge)
     {
-        OnMoveCompleted?.Invoke();
+        GameEvents.RaiseMoveCompleted();
+
+        if (wasMerge)
+            OnMoveCompleted?.Invoke();
+
+        CheckForJam();
+    }
+
+    // A detonation is NOT a move: no clock tick, no spawn. The player paid for it by
+    // building the red chain and by losing whatever cyan was standing next to it,
+    // and charging them corruption on top would make the payoff self-defeating.
+    //
+    // The jam check still runs — freeing up to nine cells is the single most
+    // un-jamming thing that can happen to a board.
+    void AfterDetonation()
+    {
         CheckForJam();
     }
 
@@ -187,6 +232,20 @@ public class InputHandler : MonoBehaviour
     // watch the game over screen anyway.
     void CheckForJam()
     {
+        // A live bomb is a legal move the merge scan cannot see: it is a maxed gem,
+        // so HasAnyValidMerge correctly reports it as unmergeable, and a full board
+        // carrying one would read as dead. Ending the run there would hand the
+        // player a game-over screen with the answer sitting on the board.
+        if (bombs != null && bombs.HasArmedBomb())
+        {
+            if (_rescuePending)
+            {
+                _rescuePending = false;
+                GameEvents.RaiseJamRescuePending(false);
+            }
+            return;
+        }
+
         bool jammed = gridManager.IsFull() && !gridManager.HasAnyValidMerge();
 
         if (!jammed)
@@ -256,7 +315,11 @@ public class InputHandler : MonoBehaviour
                     neighbour.SetHighlight(HighlightMove);
                 else if (neighbour.CurrentItem.Tier == tier
                          && neighbour.CurrentItem.Family == family
-                         && tier < Item.MaxTierFor(family))
+                         && tier < Item.MaxTierFor(family)
+                         // A bomb can arm below the top of its ladder, so a live
+                         // bomb neighbour passes the tier test and would light up
+                         // green while TryMerge refuses the drop.
+                         && !neighbour.CurrentItem.IsArmedBomb)
                     neighbour.SetHighlight(HighlightMerge);
             }
         }
