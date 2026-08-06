@@ -26,22 +26,12 @@ public class UIController : MonoBehaviour
     private Button _pickaxeButton;
     private Label _rescueHint;
     private Button _muteButton;
-    private Label _corruptionLabel;
-    private VisualElement _corruptionFill;
-
     // UI Toolkit has no keyframe animation, so the "ready" pulse is a scheduled
     // class toggle with the easing done by a USS transition. The handle is held so
     // OnDisable can stop it — a scheduler left running against a torn-down element
     // is exactly the kind of leak the OnEnable/OnDisable pairing exists to prevent.
     private IVisualElementScheduledItem _pickaxePulse;
     private bool _pickaxeWasReady;
-
-    // Corruption fill ramp. Cyan while there is room to breathe, amber as the clock
-    // gets serious, red at the top — so the bar can be read at a glance without
-    // parsing the fraction beside it.
-    private static readonly Color MeterCalm  = new Color(0.35f, 0.84f, 0.82f);
-    private static readonly Color MeterWarn  = new Color(0.96f, 0.77f, 0.26f);
-    private static readonly Color MeterAlarm = new Color(0.91f, 0.28f, 0.24f);
 
     // Query + subscribe in OnEnable; UIDocument builds rootVisualElement in its own
     // OnEnable, so keep this component on the same GameObject (its UIDocument runs
@@ -75,9 +65,6 @@ public class UIController : MonoBehaviour
         _rescueHint = root.Q<Label>("rescue-hint");
         _muteButton = root.Q<Button>("mute-button");
 
-        _corruptionLabel = root.Q<Label>("corruption-label");
-        _corruptionFill = root.Q<VisualElement>("corruption-fill");
-
         // Created paused. Every(...) starts a scheduled item running immediately,
         // and the button opens in the empty state where it must not pulse at all.
         if (_pickaxeButton != null)
@@ -91,7 +78,6 @@ public class UIController : MonoBehaviour
         SetPickaxe(0, false);
         SetRescuePending(false);
         SetMuteLabel(AudioDirector.Muted);
-        SetCorruption(0, 1);
 
         if (_restartButton != null)
             _restartButton.clicked += OnRestartClicked;
@@ -104,7 +90,6 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged += SetHighScore;
         GameEvents.PickaxeChanged += SetPickaxe;
         GameEvents.JamRescuePending += SetRescuePending;
-        GameEvents.CorruptionChanged += SetCorruption;
     }
 
     void OnDisable()
@@ -113,7 +98,6 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged -= SetHighScore;
         GameEvents.PickaxeChanged -= SetPickaxe;
         GameEvents.JamRescuePending -= SetRescuePending;
-        GameEvents.CorruptionChanged -= SetCorruption;
 
         // The scheduler belongs in this pair too: it is a subscription in all but
         // name, and left running it keeps toggling a class on a dead element.
@@ -181,27 +165,6 @@ public class UIController : MonoBehaviour
         }
 
         _pickaxeWasReady = ready;
-    }
-
-    // --- Corruption ---------------------------------------------------------
-
-    // Bus handler. Width and colour are both set from here rather than in USS:
-    // the fill ramps continuously with the value, and USS cannot express a gradient
-    // over a bound number.
-    private void SetCorruption(int current, int max)
-    {
-        if (max <= 0) max = 1;
-        float t = Mathf.Clamp01((float)current / max);
-
-        if (_corruptionLabel != null)
-            _corruptionLabel.text = current + "/" + max;
-
-        if (_corruptionFill == null) return;
-
-        _corruptionFill.style.width = new Length(t * 100f, LengthUnit.Percent);
-        _corruptionFill.style.backgroundColor = t < 0.5f
-            ? Color.Lerp(MeterCalm, MeterWarn, t / 0.5f)
-            : Color.Lerp(MeterWarn, MeterAlarm, (t - 0.5f) / 0.5f);
     }
 
     private void SetRescuePending(bool pending)

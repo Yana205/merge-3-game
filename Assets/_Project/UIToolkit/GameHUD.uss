@@ -122,43 +122,6 @@ Button:active {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }
 
-/* --- Corruption meter ---------------------------------------------------
-   The run's clock. The track is a sunken slot; the fill's width and colour are
-   both driven from UIController, because the colour ramps continuously
-   (cyan -> amber -> red) and USS has no way to express a gradient over a
-   bound value. */
-
-.meter-track {
-    height: 10px;
-    margin-top: 2px;
-    margin-bottom: 6px;
-    background-color: rgba(0, 0, 0, 0.45);
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-top-width: 1px;
-    border-bottom-width: 1px;
-    border-left-color: rgba(0, 0, 0, 0.6);
-    border-right-color: rgba(0, 0, 0, 0.6);
-    border-top-color: rgba(0, 0, 0, 0.6);
-    border-bottom-color: rgba(0, 0, 0, 0.6);
-    overflow: hidden;
-}
-
-.meter-fill {
-    height: 100%;
-    width: 0%;
-    background-color: rgb(90, 214, 208);
-    /* Eased so a merge's drain reads as the bar RECEDING — an instant jump
-       would not register as the player having pushed the threat back. */
-    transition-property: width, background-color;
-    transition-duration: 0.25s, 0.25s;
-    transition-timing-function: ease-out;
-}
-
-.numeral--warn {
-    color: rgb(232, 122, 106);
-}
-
 /* --- Pickaxe -----------------------------------------------------------
    Three states the player must be able to tell apart at a glance: empty
    (nothing to spend), ready (a charge banked), armed (the next tap shatters).

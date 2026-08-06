@@ -25,18 +25,6 @@
                 <ui:Label name="high-score-label" text="0" class="numeral" />
             </ui:VisualElement>
 
-            <!-- The corruption clock. Every move winds it up, every merge winds it
-                 back by the tier made; a full meter erupts a red crystal. The bar
-                 matters more than the numerals — the fill ramps cyan to red so the
-                 threat is legible without reading a fraction. -->
-            <ui:VisualElement class="stat-row">
-                <ui:Label text="CORRUPTION" class="field-label" />
-                <ui:Label name="corruption-label" text="0/20" class="numeral numeral--warn" />
-            </ui:VisualElement>
-            <ui:VisualElement name="corruption-track" class="meter-track">
-                <ui:VisualElement name="corruption-fill" class="meter-fill" />
-            </ui:VisualElement>
-
             <!-- Pickaxe: banked charges, and the button that arms one. -->
             <ui:VisualElement class="stat-row">
                 <ui:Label text="PICKAXE" class="field-label" />

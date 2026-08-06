@@ -49,19 +49,13 @@ public static class GameEvents
     /// Item and its Cell, read before either is torn down.</summary>
     public static event Action<Item, Cell> TileShattered;
 
-    /// <summary>
-    /// Raised after EVERY successful move — merge or slide alike. This is the
-    /// corruption clock's tick: the whole point of the mechanic is that shuffling
-    /// costs you time even though it costs you no board space, so a slide must
-    /// reach CorruptionController exactly like a merge does.
-    ///
-    /// Distinct from <see cref="InputHandler.OnMoveCompleted"/>, which now fires
-    /// only for merges because it drives the cyan spawn.
-    /// </summary>
-    public static event Action MoveCompleted;
+    /// <summary>Raised after the player places a crystal, before fusion resolves.
+    /// Args: the placed Item and its Cell.</summary>
+    public static event Action<Item, Cell> CrystalPlaced;
 
-    /// <summary>Raised whenever the corruption meter moves. Args: (current, max).</summary>
-    public static event Action<int, int> CorruptionChanged;
+    /// <summary>Raised when the upcoming-crystal queue changes. Arg: how many
+    /// crystals it is holding.</summary>
+    public static event Action<int> QueueChanged;
 
     /// <summary>Raised when a red crystal reaches the top of its ladder and becomes
     /// a live bomb. Arg: the armed Item.</summary>
@@ -91,9 +85,9 @@ public static class GameEvents
 
     public static void RaiseTileShattered(Item item, Cell cell) => TileShattered?.Invoke(item, cell);
 
-    public static void RaiseMoveCompleted() => MoveCompleted?.Invoke();
+    public static void RaiseCrystalPlaced(Item placed, Cell cell) => CrystalPlaced?.Invoke(placed, cell);
 
-    public static void RaiseCorruptionChanged(int current, int max) => CorruptionChanged?.Invoke(current, max);
+    public static void RaiseQueueChanged(int count) => QueueChanged?.Invoke(count);
 
     public static void RaiseBombArmed(Item bomb) => BombArmed?.Invoke(bomb);
 
@@ -116,8 +110,8 @@ public static class GameEvents
         PickaxeChanged = null;
         JamRescuePending = null;
         TileShattered = null;
-        MoveCompleted = null;
-        CorruptionChanged = null;
+        CrystalPlaced = null;
+        QueueChanged = null;
         BombArmed = null;
         BombDetonated = null;
     }

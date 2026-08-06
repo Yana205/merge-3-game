@@ -27,14 +27,14 @@ public class LevelManager : MonoBehaviour
              "carry over into a fresh board.")]
     [SerializeField] private PickaxeController pickaxeController;
 
-    [Tooltip("Optional. The run's clock. Without it no red ever erupts and the " +
-             "board is pure cyan — playable, but with no pressure and no end.")]
-    [SerializeField] private CorruptionController corruption;
-
-    [Tooltip("Optional. Owns the armed red crystals. Referenced here only so a " +
-             "detonation can purge the corruption meter and a new run can forget " +
-             "the last run's bombs.")]
+    [Tooltip("Optional. Owns the armed red crystals. Referenced here only so a new " +
+             "run can forget the last run's bombs.")]
     [SerializeField] private BombController bombs;
+
+    [Tooltip("The player's supply. Refilled at the start of each run — AFTER the " +
+             "board is built, because building it reclaims every live Item " +
+             "including the queue's previews.")]
+    [SerializeField] private CrystalQueue crystalQueue;
 
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
@@ -55,14 +55,11 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
 
-    [Tooltip("Chance each cell starts empty when the board is first laid out.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float startingEmptyChance = 0.28f;
-
-    [Tooltip("Adjacent same-tier pairs guaranteed on the opening board. A random " +
-             "fill can contain none at all, which is an instant loss.")]
+    [Tooltip("Tier-1 cyan crystals scattered on the opening board. Enough that the " +
+             "first few placements can complete something; few enough that the " +
+             "player is still the one building the board. 0 starts it empty.")]
     [Min(0)]
-    [SerializeField] private int startingGuaranteedPairs = 3;
+    [SerializeField] private int startingCrystals = 8;
 
     [Header("Difficulty")]
     [SerializeField] private DifficultyCurve difficulty = new DifficultyCurve();
@@ -142,14 +139,6 @@ public class LevelManager : MonoBehaviour
         // LevelManager reacts here instead of scoring the merge itself.
         GameEvents.ScoreChanged += HandleScoreChanged;
 
-        // Remember where the last merge happened so the cyan crystal it earns can
-        // appear next to it. Guaranteed to arrive before OnMoveCompleted:
-        // MergeManager raises TileMerged inside TryMerge, and InputHandler only
-        // raises the move once TryMerge has returned.
-        GameEvents.TileMerged += HandleTileMerged;
-
-        GameEvents.CorruptionChanged += HandleCorruptionChanged;
-        GameEvents.BombDetonated += HandleBombDetonated;
     }
 
     private void RemoveListeners()
@@ -161,9 +150,6 @@ public class LevelManager : MonoBehaviour
         }
 
         GameEvents.ScoreChanged -= HandleScoreChanged;
-        GameEvents.TileMerged -= HandleTileMerged;
-        GameEvents.CorruptionChanged -= HandleCorruptionChanged;
-        GameEvents.BombDetonated -= HandleBombDetonated;
     }
 
     void HandleServicesReady()
@@ -223,19 +209,20 @@ public class LevelManager : MonoBehaviour
 
         // After the score reset, not before: PickaxeController watches ScoreChanged
         // to move its goalpost, so resetting it first would let the reset-to-zero
-        // event walk the goalpost straight back down again. CorruptionController
-        // watches the same event to pick its rate and has the same hazard.
+        // event walk the goalpost straight back down again.
         pickaxeController?.ResetRun();
-        corruption?.ResetRun();
 
-        // Before the board is built, so the wipe cannot catch a gem from the new
+        // Before the board is built, so the wipe cannot catch a crystal from the new
         // board. The old board's Items are pooled by CreateGrid without passing
         // through BombController, which would otherwise keep tracking them.
         bombs?.ResetRun();
 
-        _lastMergeCell = null;
-
         BuildStartingBoard();
+
+        // AFTER the board: CreateGrid runs ClearGrid, which reclaims every live Item
+        // this run — the queue's preview crystals included. Filling the queue first
+        // would leave three destroyed previews and an empty row under the board.
+        crystalQueue?.ResetRun(difficulty, 0);
         OnScoreChanged?.Invoke(CurrentScore, BestScore);
         GameEvents.RaiseBestScoreChanged(BestScore);
 
@@ -245,149 +232,32 @@ public class LevelManager : MonoBehaviour
             inputHandler.ResetState();
     }
 
-    // The one and only board build of a run. Everything after this is spawning
-    // into the board the player is already playing on.
+    // The one and only board build of a run. Everything after this is the player
+    // placing crystals by hand — nothing else ever adds one.
     void BuildStartingBoard()
     {
         if (gridManager == null) return;
 
         gridManager.CreateGrid(endlessRows, endlessCols);
 
-        for (int r = 0; r < endlessRows; r++)
-            for (int c = 0; c < endlessCols; c++)
-            {
-                if (Random.value < startingEmptyChance) continue;
-                // Score 0, so the curve hands back tier 1 — the opening board is
-                // pure fodder by construction, no special case needed.
-                gridManager.SpawnItem(gridManager.GetCell(r, c), difficulty.PickTierAt(0));
-            }
-
-        EnsureGuaranteedPairs(startingGuaranteedPairs);
+        // A light scatter of tier-1 cyan so the first few placements can complete
+        // something. All one tier and all cyan by construction: the opening board is
+        // material to build with, not a puzzle to untangle.
+        for (int i = 0; i < startingCrystals; i++)
+        {
+            Cell cell = gridManager.GetRandomEmptyCell();
+            if (cell == null) break;
+            gridManager.SpawnItem(cell, 1, GemFamily.Standard);
+        }
     }
 
-    // Where the last merge resolved, so its cyan reward can appear beside it.
-    private Cell _lastMergeCell;
-
-    void HandleTileMerged(Item merged, Cell cell)
-    {
-        _lastMergeCell = cell;
-    }
-
-    // A MERGE landed — InputHandler no longer raises this for slides. Exactly one
-    // cyan crystal arrives, which makes a merge net-zero on tiles: the board neither
-    // drains nor floods from ordinary play. All pressure now comes from the
-    // corruption clock instead, which is a thing the player controls.
+    // A placement resolved (and any fusion with it). Nothing spawns here any more —
+    // the board only ever grows by the crystal the player just put down, which is
+    // the whole point of the redesign. Kept as a hook so the run has one clear
+    // "a move happened" seam for future systems.
     void HandleMoveCompleted()
     {
-        if (!_runActive || gridManager == null) return;
-
-        // Beside the merge the player just made when there is room, so the new gem
-        // appears where their eyes already are. Falls back to anywhere free.
-        Cell cell = gridManager.GetRandomEmptyCellAdjacentTo(_lastMergeCell)
-                    ?? gridManager.GetRandomEmptyCell();
-
-        // Board is full. Nothing to do — InputHandler runs the jam check next.
-        if (cell == null) return;
-
-        gridManager.SpawnItem(cell, difficulty.PickTierAt(CurrentScore), GemFamily.Standard);
-    }
-
-    // The clock moved. A full meter is an eruption owed, not an eruption done:
-    // CorruptionController deliberately cannot clear itself, because whether a red
-    // fits on the board is a board question and only this class can answer it.
-    void HandleCorruptionChanged(int current, int max)
-    {
-        if (!_runActive || corruption == null) return;
-        if (!corruption.EruptionPending) return;
-
-        if (EruptRed())
-            corruption.ConsumeEruption();
-        // Otherwise the board was full: the meter stays pinned at the top and the
-        // red erupts on the first move that frees a cell. Dropping it here would
-        // quietly reward the player for playing themselves into a corner.
-    }
-
-    // Detonating purges the meter outright. That is the bomb's real payoff — the
-    // nine cells it frees are worth less than the time it buys back.
-    void HandleBombDetonated(Cell centre, int cleared)
-    {
-        corruption?.Purge();
-    }
-
-    /// <summary>
-    /// Put one red crystal on the board, beside an existing red where possible.
-    /// Returns false when there was nowhere to put it.
-    ///
-    /// Reds always enter at tier 1. A red spawned mid-ladder needs two more reds of
-    /// that exact tier to ever leave the board, which the player cannot influence;
-    /// entering at the bottom keeps every red climbable, so reaching the bomb is
-    /// always something the player can work toward.
-    /// </summary>
-    bool EruptRed()
-    {
-        if (gridManager == null) return false;
-        if (Item.MaxTierFor(GemFamily.Red) <= 0) return false;
-
-        Cell target = null;
-
-        // Cluster on an existing red so the chain stays climbable and the spread is
-        // readable. Shuffle-free: try reds in random order until one has a free
-        // neighbour, rather than giving up on the first boxed-in red.
-        System.Collections.Generic.List<Cell> reds =
-            gridManager.FindCellsWithFamily(GemFamily.Red);
-
-        while (reds.Count > 0 && target == null)
-        {
-            int i = Random.Range(0, reds.Count);
-            target = gridManager.GetRandomEmptyCellAdjacentTo(reds[i]);
-            reds.RemoveAt(i);
-        }
-
-        target ??= gridManager.GetRandomEmptyCell();
-        if (target == null) return false;
-
-        return gridManager.SpawnItem(target, 1, GemFamily.Red) != null;
-    }
-
-    // A random fill can start with no adjacent same-tier pair, which is an
-    // instant game over on a full board. Copy a random item's tier into one
-    // of its neighbours until the board has at least `wanted` merge pairs.
-    void EnsureGuaranteedPairs(int wanted)
-    {
-        if (wanted <= 0 || gridManager == null) return;
-
-        for (int safety = 0; safety < 64; safety++)
-        {
-            if (gridManager.CountAdjacentSameTierPairs() >= wanted)
-                return;
-
-            Cell source = gridManager.GetCell(
-                Random.Range(0, gridManager.rows), Random.Range(0, gridManager.cols));
-            if (source == null || !source.IsOccupied()
-                || source.CurrentItem.Tier >= Item.MaxTierFor(source.CurrentItem.Family))
-                continue;
-
-            int dr = Random.Range(-1, 2), dc = Random.Range(-1, 2);
-            if (dr == 0 && dc == 0) continue;
-            Cell target = gridManager.GetCell(source.row + dr, source.col + dc);
-            if (target == null) continue;
-
-            // Copy family as well as tier — a "guaranteed pair" that spans two
-            // chains is not a pair at all, and the board could open unplayable.
-            int tier = source.CurrentItem.Tier;
-            GemFamily family = source.CurrentItem.Family;
-            if (target.IsOccupied())
-            {
-                if (target.CurrentItem.Tier == tier
-                    && target.CurrentItem.Family == family) continue;
-                Item old = target.CurrentItem;
-                target.RemoveItem();
-                gridManager.DespawnItem(old);
-            }
-            gridManager.SpawnItem(target, tier, family);
-        }
-
-        Debug.LogWarning("LevelManager: could not guarantee " + wanted + " merge pairs at board setup.");
+        if (!_runActive) return;
     }
 
     // Bus handler: ScoreController owns the number and raises ScoreChanged after
