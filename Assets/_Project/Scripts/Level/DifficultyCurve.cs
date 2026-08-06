@@ -19,7 +19,11 @@ public class DifficultyCurve
     [Header("Spawn Pressure")]
     [Tooltip("Scores at which one more gem per move is added. Starts at 1 gem; " +
              "each threshold passed adds another. Order does not matter.")]
-    [SerializeField] private int[] _spawnCountThresholds = { 350, 1200 };
+    // Pushed out from {350, 1200}: the red chain now leaves permanently dead cells
+    // behind, so the board fills from two directions at once. Two gems a move
+    // arriving at 350 stacked on top of that turned the mid-game into a scramble
+    // rather than a puzzle.
+    [SerializeField] private int[] _spawnCountThresholds = { 700, 2500 };
 
     [Header("Spawn Tiers")]
     [Tooltip("Scores at which one more spawn tier unlocks. Starts at tier 1 only; " +

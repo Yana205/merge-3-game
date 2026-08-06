@@ -25,8 +25,20 @@
                 <ui:Label name="high-score-label" text="0" class="numeral" />
             </ui:VisualElement>
 
+            <!-- Pickaxe: banked charges, and the button that arms one. -->
+            <ui:VisualElement class="stat-row">
+                <ui:Label text="PICKAXE" class="field-label" />
+                <ui:Label name="pickaxe-label" text="0" class="numeral numeral--gold" />
+            </ui:VisualElement>
+
+            <ui:Button name="pickaxe-button" text="SHATTER" class="restart-button pickaxe-button" />
+
+            <!-- Shown only while the board is jammed and a charge is in hand. -->
+            <ui:Label name="rescue-hint" text="STUCK! TAP A GEM TO SHATTER" class="rescue-hint" />
+
             <!-- Button = the type selector; clicked is wired in UIController. -->
             <ui:Button name="restart-button" text="RESTART" class="restart-button" />
+            <ui:Button name="mute-button" text="SOUND: ON" class="restart-button mute-button" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

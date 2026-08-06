@@ -36,6 +36,19 @@ public static class GameEvents
     /// <summary>Raised when the best recorded score changes. Arg: the new best.</summary>
     public static event Action<int> BestScoreChanged;
 
+    /// <summary>Raised when pickaxe charges are earned/spent or the tool is armed
+    /// or disarmed. Args: (charges in hand, armed).</summary>
+    public static event Action<int, bool> PickaxeChanged;
+
+    /// <summary>Raised when the board has jammed but the player still holds a
+    /// charge — the run is not over, the pickaxe is the only legal move. Arg: true
+    /// when entering that state, false when it clears.</summary>
+    public static event Action<bool> JamRescuePending;
+
+    /// <summary>Raised when a gem is shattered by the pickaxe. Args: the doomed
+    /// Item and its Cell, read before either is torn down.</summary>
+    public static event Action<Item, Cell> TileShattered;
+
     // ---- Raisers -----------------------------------------------------------
     // Publishers call these instead of touching the events directly, so the
     // "?.Invoke() everywhere" rule lives in exactly one place.
@@ -49,6 +62,12 @@ public static class GameEvents
     public static void RaiseRestartRequested() => RestartRequested?.Invoke();
 
     public static void RaiseBestScoreChanged(int best) => BestScoreChanged?.Invoke(best);
+
+    public static void RaisePickaxeChanged(int charges, bool armed) => PickaxeChanged?.Invoke(charges, armed);
+
+    public static void RaiseJamRescuePending(bool pending) => JamRescuePending?.Invoke(pending);
+
+    public static void RaiseTileShattered(Item item, Cell cell) => TileShattered?.Invoke(item, cell);
 
     /// <summary>
     /// Static events keep their subscriber lists across Editor play sessions when
@@ -64,5 +83,8 @@ public static class GameEvents
         SaveRequested = null;
         RestartRequested = null;
         BestScoreChanged = null;
+        PickaxeChanged = null;
+        JamRescuePending = null;
+        TileShattered = null;
     }
 }

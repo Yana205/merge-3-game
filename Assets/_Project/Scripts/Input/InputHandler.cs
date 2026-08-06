@@ -13,6 +13,11 @@ public class InputHandler : MonoBehaviour
     public GridManager gridManager;
     public MergeManager mergeManager;
 
+    [Tooltip("Optional. When assigned, an armed pickaxe turns a tap on a gem into a " +
+             "shatter, and a jam with charges in hand becomes a rescue instead of a " +
+             "game over. Leave empty and the board plays exactly as it did before.")]
+    [SerializeField] private PickaxeController pickaxe;
+
     public event Action OnGameOver;
 
     /// <summary>
@@ -29,6 +34,7 @@ public class InputHandler : MonoBehaviour
     private bool _isDragging;
     private bool _gameOver;
     private bool _inputEnabled = true;
+    private bool _rescuePending;
     private Camera _camera;
 
     private static readonly Color HighlightMerge = new Color(0.15f, 0.60f, 0.15f);
@@ -65,6 +71,15 @@ public class InputHandler : MonoBehaviour
             if (col == null) continue;
             if (col.TryGetComponent(out Item item))
             {
+                // An armed pickaxe consumes the tap: shatter instead of drag. No
+                // drag state is set, so this never falls through to HandlePointerUp.
+                if (pickaxe != null && pickaxe.IsArmed)
+                {
+                    if (pickaxe.Shatter(item))
+                        AfterShatter();
+                    return;
+                }
+
                 StartDrag(item, worldPos);
                 return;
             }
@@ -151,12 +166,54 @@ public class InputHandler : MonoBehaviour
     void AfterMove()
     {
         OnMoveCompleted?.Invoke();
+        CheckForJam();
+    }
 
-        if (gridManager.IsFull() && !gridManager.HasAnyValidMerge())
+    // A shatter is NOT a move: it deliberately does not raise OnMoveCompleted, so
+    // no gems spawn afterwards. Spawning here would hand back the cell the player
+    // just paid a charge for, which is the whole point of the tool.
+    //
+    // The jam check still runs, because freeing a cell is exactly what un-jams a
+    // board — and because a player who spends their last charge without fixing
+    // anything has genuinely reached the end of the run.
+    void AfterShatter()
+    {
+        CheckForJam();
+    }
+
+    // The board is lost only when there is no legal move AND no charge left to make
+    // one. Ending the run while the player still holds a pickaxe would make the
+    // tool worthless precisely when it is needed — you would bank three rescues and
+    // watch the game over screen anyway.
+    void CheckForJam()
+    {
+        bool jammed = gridManager.IsFull() && !gridManager.HasAnyValidMerge();
+
+        if (!jammed)
         {
-            _gameOver = true;
-            OnGameOver?.Invoke();
+            if (_rescuePending)
+            {
+                _rescuePending = false;
+                GameEvents.RaiseJamRescuePending(false);
+            }
+            return;
         }
+
+        if (pickaxe != null && pickaxe.HasCharge)
+        {
+            // The pickaxe is now the only legal action, so arm it for the player
+            // rather than making them find the button while staring at a dead board.
+            if (!_rescuePending)
+            {
+                _rescuePending = true;
+                GameEvents.RaiseJamRescuePending(true);
+            }
+            pickaxe.TryArm();
+            return;
+        }
+
+        _gameOver = true;
+        OnGameOver?.Invoke();
     }
 
     public void ResetState()
@@ -166,6 +223,12 @@ public class InputHandler : MonoBehaviour
         _draggedItem = null;
         _sourceCell = null;
         _isDragging = false;
+
+        if (_rescuePending)
+        {
+            _rescuePending = false;
+            GameEvents.RaiseJamRescuePending(false);
+        }
     }
 
     // Called by LevelManager to freeze/unfreeze board interaction

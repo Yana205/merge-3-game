@@ -121,3 +121,35 @@ Button:hover {
 Button:active {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }
+
+/* --- Pickaxe -----------------------------------------------------------
+   Three states the player must be able to tell apart at a glance: empty
+   (nothing to spend), ready (a charge banked), armed (the next tap shatters).
+   Armed borrows the pressed frame so the button visibly stays down — the board
+   is in a mode, and a flat button would not say so. */
+
+.pickaxe-button--empty {
+    opacity: 0.35;
+}
+
+.pickaxe-button--armed {
+    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
+    color: rgb(245, 197, 66);
+}
+
+/* The jam prompt. Gold on the panel, hidden until the board actually jams with
+   a charge in hand — display:none rather than opacity so it takes no layout
+   space in the normal case and the panel does not reserve a gap for it. */
+.rescue-hint {
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: rgb(245, 197, 66);
+    white-space: normal;
+    margin-top: 8px;
+    display: none;
+}
+
+.rescue-hint--visible {
+    display: flex;
+}

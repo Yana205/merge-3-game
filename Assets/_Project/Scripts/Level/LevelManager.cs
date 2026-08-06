@@ -23,6 +23,9 @@ public class LevelManager : MonoBehaviour
     // serialization and for future direct-hook needs.
     public MergeManager mergeManager;
     [SerializeField] private ProgressManager progressManager;
+    [Tooltip("Optional. Cleared at the start of each run so banked charges never " +
+             "carry over into a fresh board.")]
+    [SerializeField] private PickaxeController pickaxeController;
 
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
@@ -196,6 +199,11 @@ public class LevelManager : MonoBehaviour
 
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
         _localScore = 0;
+
+        // After the score reset, not before: PickaxeController watches ScoreChanged
+        // to move its goalpost, so resetting it first would let the reset-to-zero
+        // event walk the goalpost straight back down again.
+        pickaxeController?.ResetRun();
 
         BuildStartingBoard();
         OnScoreChanged?.Invoke(CurrentScore, BestScore);

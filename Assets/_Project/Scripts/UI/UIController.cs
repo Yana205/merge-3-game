@@ -13,10 +13,19 @@ using UnityEngine.UIElements;
 [RequireComponent(typeof(UIDocument))]
 public class UIController : MonoBehaviour
 {
+    [Tooltip("Optional. Assign to let the HUD's SHATTER button arm the pickaxe. " +
+             "Without it the counter still tracks charges over the bus; only the " +
+             "button goes inert.")]
+    [SerializeField] private PickaxeController pickaxe;
+
     private UIDocument _document;
     private Label _scoreLabel;
     private Label _highScoreLabel;
     private Button _restartButton;
+    private Label _pickaxeLabel;
+    private Button _pickaxeButton;
+    private Label _rescueHint;
+    private Button _muteButton;
 
     // Query + subscribe in OnEnable; UIDocument builds rootVisualElement in its own
     // OnEnable, so keep this component on the same GameObject (its UIDocument runs
@@ -45,20 +54,83 @@ public class UIController : MonoBehaviour
         // the same number that could disagree. ProgressManager owns it now.
         SetHighScore(0);
 
+        _pickaxeLabel = root.Q<Label>("pickaxe-label");
+        _pickaxeButton = root.Q<Button>("pickaxe-button");
+        _rescueHint = root.Q<Label>("rescue-hint");
+        _muteButton = root.Q<Button>("mute-button");
+
+        SetPickaxe(0, false);
+        SetRescuePending(false);
+        SetMuteLabel(AudioDirector.Muted);
+
         if (_restartButton != null)
             _restartButton.clicked += OnRestartClicked;
+        if (_pickaxeButton != null)
+            _pickaxeButton.clicked += OnPickaxeClicked;
+        if (_muteButton != null)
+            _muteButton.clicked += OnMuteClicked;
 
         GameEvents.ScoreChanged += OnScoreChanged;
         GameEvents.BestScoreChanged += SetHighScore;
+        GameEvents.PickaxeChanged += SetPickaxe;
+        GameEvents.JamRescuePending += SetRescuePending;
     }
 
     void OnDisable()
     {
         GameEvents.ScoreChanged -= OnScoreChanged;
         GameEvents.BestScoreChanged -= SetHighScore;
+        GameEvents.PickaxeChanged -= SetPickaxe;
+        GameEvents.JamRescuePending -= SetRescuePending;
 
         if (_restartButton != null)
             _restartButton.clicked -= OnRestartClicked;
+        if (_pickaxeButton != null)
+            _pickaxeButton.clicked -= OnPickaxeClicked;
+        if (_muteButton != null)
+            _muteButton.clicked -= OnMuteClicked;
+    }
+
+    // --- Pickaxe ------------------------------------------------------------
+
+    // Bus handler. The counter and the button's three states (empty / ready /
+    // armed) are driven entirely from here, so the HUD never has to ask the
+    // PickaxeController what it is doing — it is told.
+    private void SetPickaxe(int charges, bool armed)
+    {
+        if (_pickaxeLabel != null)
+            _pickaxeLabel.text = charges.ToString();
+
+        if (_pickaxeButton == null) return;
+
+        _pickaxeButton.EnableInClassList("pickaxe-button--empty", charges <= 0);
+        _pickaxeButton.EnableInClassList("pickaxe-button--armed", armed);
+        _pickaxeButton.text = armed ? "TAP A GEM" : "SHATTER";
+    }
+
+    private void SetRescuePending(bool pending)
+    {
+        if (_rescueHint != null)
+            _rescueHint.EnableInClassList("rescue-hint--visible", pending);
+    }
+
+    private void OnPickaxeClicked()
+    {
+        if (pickaxe != null) pickaxe.ToggleArmed();
+    }
+
+    // --- Sound --------------------------------------------------------------
+
+    private void OnMuteClicked()
+    {
+        AudioDirector.SetMuted(!AudioDirector.Muted);
+        SetMuteLabel(AudioDirector.Muted);
+    }
+
+    private void SetMuteLabel(bool muted)
+    {
+        if (_muteButton != null)
+            _muteButton.text = muted ? "SOUND: OFF" : "SOUND: ON";
     }
 
     // Bus handler — the score changed somewhere; reflect it. Working out whether
