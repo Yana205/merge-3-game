@@ -2,6 +2,8 @@
 
 A merge-3 puzzle game built with Unity 6, Unity MCP and claude code. Made assets directly to the game using claude. Full skills structure and automatic workflow of asset and mechanic agents.
 
+https://yanaifraimov.itch.io/lustrous
+
 current
 <img width="800" height="487" alt="Image" src="https://github.com/user-attachments/assets/2fc4f0bb-0c7b-4011-8176-7c435a5cb06d" />
 
