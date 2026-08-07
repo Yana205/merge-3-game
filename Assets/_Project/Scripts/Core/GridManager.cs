@@ -130,36 +130,37 @@ public class GridManager : MonoBehaviour
         _itemFactory = factory;
     }
 
+    // The one place an Item comes into existence, shared by the board spawn and the
+    // loose queue-preview spawn so the pool/fallback logic is not written twice.
+    private Item CreateItem(Vector3 position)
+    {
+        if (_itemFactory != null)
+            return _itemFactory.Get(position);
+
+        // Last-resort fallback: keep the game running when ServiceLoader
+        // has not injected the factory yet (or is missing), but say so once.
+        if (!_warnedPoolUnwired)
+        {
+            Debug.LogError("GridManager: ItemFactory is not injected — falling back to Instantiate/Destroy for Items.");
+            _warnedPoolUnwired = true;
+        }
+
+        if (itemPrefab == null)
+        {
+            Debug.LogError("GridManager: itemPrefab is not assigned.");
+            return null;
+        }
+
+        GameObject go = Instantiate(itemPrefab, position, Quaternion.identity);
+        return go.GetComponent<Item>();
+    }
+
     public Item SpawnItem(Cell cell, int tier = 1, GemFamily family = GemFamily.Standard)
     {
         if (cell == null || cell.IsOccupied())
             return null;
 
-        Item item;
-        if (_itemFactory != null)
-        {
-            item = _itemFactory.Get(cell.transform.position);
-        }
-        else
-        {
-            // Last-resort fallback: keep the game running when ServiceLoader
-            // has not injected the factory yet (or is missing), but say so once.
-            if (!_warnedPoolUnwired)
-            {
-                Debug.LogError("GridManager: ItemFactory is not injected — falling back to Instantiate/Destroy for Items.");
-                _warnedPoolUnwired = true;
-            }
-
-            if (itemPrefab == null)
-            {
-                Debug.LogError("GridManager: itemPrefab is not assigned.");
-                return null;
-            }
-
-            GameObject go = Instantiate(itemPrefab, cell.transform.position, Quaternion.identity);
-            item = go.GetComponent<Item>();
-        }
-
+        Item item = CreateItem(cell.transform.position);
         if (item == null)
             return null;
 
@@ -212,13 +213,6 @@ public class GridManager : MonoBehaviour
         return null;
     }
 
-    public bool AreAdjacent(Cell a, Cell b)
-    {
-        return a != b
-            && Mathf.Abs(a.row - b.row) <= 1
-            && Mathf.Abs(a.col - b.col) <= 1;
-    }
-
     public Cell GetRandomEmptyCell()
     {
         if (grid == null) return null;
@@ -234,77 +228,87 @@ public class GridManager : MonoBehaviour
         return emptyCells[Random.Range(0, emptyCells.Count)];
     }
 
-    // The jam check. It MUST compare family alongside tier: a full board of red 3s
-    // sitting beside standard 3s has no legal move, and a tier-only check would
-    // call it playable — the run would hang instead of ending.
-    public bool HasAnyValidMerge()
+    /// <summary>
+    /// Every cell reachable from <paramref name="origin"/> through ORTHOGONAL
+    /// neighbours holding the identical crystal — same family and same tier.
+    /// Includes the origin itself, so the result is never empty for an occupied
+    /// cell. Returns an empty list for a null or empty origin.
+    ///
+    /// Orthogonal on purpose. With diagonals on a 6x6 board, groups of three form
+    /// almost by accident and the puzzle evaporates; 4-way is also the rule every
+    /// classic merge game uses.
+    ///
+    /// Armed bombs are excluded from both ends of the walk: a bomb is a button, not
+    /// a crystal, and a fourth red landing beside a finished bomb must not be able
+    /// to fuse it back into an ordinary gem.
+    /// </summary>
+    public List<Cell> GetConnectedGroup(Cell origin)
     {
-        if (grid == null) return false;
+        var group = new List<Cell>();
+        if (grid == null || origin == null || !origin.IsOccupied()) return group;
+        if (origin.CurrentItem.IsArmedBomb) return group;
 
-        for (int r = 0; r < rows; r++)
+        int tier = origin.CurrentItem.Tier;
+        GemFamily family = origin.CurrentItem.Family;
+
+        var seen = new HashSet<Cell> { origin };
+        var frontier = new Queue<Cell>();
+        frontier.Enqueue(origin);
+        group.Add(origin);
+
+        // Orthogonal only: no diagonals in this table, and that is the whole rule.
+        var steps = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        while (frontier.Count > 0)
         {
-            for (int c = 0; c < cols; c++)
+            Cell cell = frontier.Dequeue();
+            foreach ((int dr, int dc) in steps)
             {
-                Cell cell = grid[r, c];
-                if (cell == null || !cell.IsOccupied()) continue;
+                Cell next = GetCell(cell.row + dr, cell.col + dc);
+                if (next == null || seen.Contains(next)) continue;
+                if (!next.IsOccupied()) continue;
 
-                int tier = cell.CurrentItem.Tier;
-                GemFamily family = cell.CurrentItem.Family;
-                if (tier >= Item.MaxTierFor(family)) continue;
+                Item item = next.CurrentItem;
+                if (item.IsArmedBomb) continue;
+                if (item.Tier != tier || item.Family != family) continue;
 
-                for (int dr = -1; dr <= 1; dr++)
-                {
-                    for (int dc = -1; dc <= 1; dc++)
-                    {
-                        if (dr == 0 && dc == 0) continue;
-                        Cell neighbour = GetCell(r + dr, c + dc);
-                        if (neighbour != null && neighbour.IsOccupied()
-                            && neighbour.CurrentItem.Tier == tier
-                            && neighbour.CurrentItem.Family == family)
-                            return true;
-                    }
-                }
+                seen.Add(next);
+                group.Add(next);
+                frontier.Enqueue(next);
             }
         }
 
-        return false;
+        return group;
     }
 
-    // Counts distinct adjacent mergeable pairs (each unordered pair once) — same
-    // family AND same tier, matching HasAnyValidMerge. LevelManager uses this to
-    // guarantee the opening board has real merge pairs; counting cross-family
-    // neighbours here would let it "guarantee" pairs that cannot be merged.
-    public int CountAdjacentSameTierPairs()
+    /// <summary>
+    /// Spawn an Item at a world position with no Cell behind it — used for the
+    /// queue previews below the board.
+    ///
+    /// A loose item is deliberately inert: placement requires an empty Cell, and
+    /// PickaxeController.Shatter already refuses an item that FindCellWithItem
+    /// cannot locate, so tapping a preview does nothing in every input mode.
+    ///
+    /// It IS registered in _liveItems, so ClearGrid reclaims it — which means the
+    /// queue must re-render AFTER a board rebuild, never before.
+    /// </summary>
+    public Item SpawnLooseItem(Vector3 position, int tier, GemFamily family)
     {
-        if (grid == null) return 0;
+        Item item = CreateItem(position);
+        if (item == null) return null;
 
-        int pairs = 0;
-        for (int r = 0; r < rows; r++)
-        {
-            for (int c = 0; c < cols; c++)
-            {
-                Cell cell = grid[r, c];
-                if (cell == null || !cell.IsOccupied()) continue;
-
-                int tier = cell.CurrentItem.Tier;
-                GemFamily family = cell.CurrentItem.Family;
-                if (tier >= Item.MaxTierFor(family)) continue;
-
-                // Only look at forward neighbours so each pair is counted once:
-                // east, south-west, south, south-east.
-                foreach (var (dr, dc) in new[] { (0, 1), (1, -1), (1, 0), (1, 1) })
-                {
-                    Cell neighbour = GetCell(r + dr, c + dc);
-                    if (neighbour != null && neighbour.IsOccupied()
-                        && neighbour.CurrentItem.Tier == tier
-                        && neighbour.CurrentItem.Family == family)
-                        pairs++;
-                }
-            }
-        }
-
-        return pairs;
+        item.Setup(tier, family);
+        item.OnDespawned += HandleItemDespawned;
+        _liveItems.Add(item);
+        return item;
     }
+
+    /// <summary>World-space centre of the board, so callers can lay things out
+    /// relative to it without duplicating the origin maths in CreateGrid.</summary>
+    public Vector3 BoardCentre => transform.position;
+
+    /// <summary>World-space Y of the row below the bottom of the board.</summary>
+    public float BottomEdgeY => transform.position.y - ((rows - 1) * cellSize) / 2f;
 
     public bool IsFull()
     {

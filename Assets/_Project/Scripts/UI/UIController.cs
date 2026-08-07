@@ -26,6 +26,13 @@ public class UIController : MonoBehaviour
     private Button _pickaxeButton;
     private Label _rescueHint;
     private Button _muteButton;
+    private Label _placeHint;
+    // UI Toolkit has no keyframe animation, so the "ready" pulse is a scheduled
+    // class toggle with the easing done by a USS transition. The handle is held so
+    // OnDisable can stop it — a scheduler left running against a torn-down element
+    // is exactly the kind of leak the OnEnable/OnDisable pairing exists to prevent.
+    private IVisualElementScheduledItem _pickaxePulse;
+    private bool _pickaxeWasReady;
 
     // Query + subscribe in OnEnable; UIDocument builds rootVisualElement in its own
     // OnEnable, so keep this component on the same GameObject (its UIDocument runs
@@ -58,6 +65,17 @@ public class UIController : MonoBehaviour
         _pickaxeButton = root.Q<Button>("pickaxe-button");
         _rescueHint = root.Q<Label>("rescue-hint");
         _muteButton = root.Q<Button>("mute-button");
+        _placeHint = root.Q<Label>("place-hint");
+
+        // Created paused. Every(...) starts a scheduled item running immediately,
+        // and the button opens in the empty state where it must not pulse at all.
+        if (_pickaxeButton != null)
+        {
+            _pickaxePulse = _pickaxeButton.schedule
+                .Execute(() => _pickaxeButton.ToggleInClassList("pickaxe-button--pulse"))
+                .Every(700);
+            _pickaxePulse.Pause();
+        }
 
         SetPickaxe(0, false);
         SetRescuePending(false);
@@ -74,6 +92,7 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged += SetHighScore;
         GameEvents.PickaxeChanged += SetPickaxe;
         GameEvents.JamRescuePending += SetRescuePending;
+        GameEvents.CrystalPlaced += OnCrystalPlaced;
     }
 
     void OnDisable()
@@ -82,6 +101,13 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged -= SetHighScore;
         GameEvents.PickaxeChanged -= SetPickaxe;
         GameEvents.JamRescuePending -= SetRescuePending;
+        GameEvents.CrystalPlaced -= OnCrystalPlaced;
+
+        // The scheduler belongs in this pair too: it is a subscription in all but
+        // name, and left running it keeps toggling a class on a dead element.
+        _pickaxePulse?.Pause();
+        _pickaxePulse = null;
+        _pickaxeWasReady = false;
 
         if (_restartButton != null)
             _restartButton.clicked -= OnRestartClicked;
@@ -103,9 +129,46 @@ public class UIController : MonoBehaviour
 
         if (_pickaxeButton == null) return;
 
-        _pickaxeButton.EnableInClassList("pickaxe-button--empty", charges <= 0);
+        bool hasCharge = charges > 0;
+        bool ready = hasCharge && !armed;
+
+        // The real fix, not just a class: a disabled button refuses the click,
+        // stops :hover and :active from firing, and gets USS's :disabled state.
+        // Dimming alone left it clickable, so a tap ran TryArm(), got false, and
+        // produced nothing — which reads as a broken button, not a locked one.
+        _pickaxeButton.SetEnabled(hasCharge);
+
+        _pickaxeButton.EnableInClassList("pickaxe-button--empty", !hasCharge);
+        _pickaxeButton.EnableInClassList("pickaxe-button--ready", ready);
         _pickaxeButton.EnableInClassList("pickaxe-button--armed", armed);
         _pickaxeButton.text = armed ? "TAP A GEM" : "SHATTER";
+
+        SetPickaxePulse(ready);
+    }
+
+    // The ready state pulses; nothing else does. Attention is a budget — a button
+    // that glows while it is unusable spends it on a lie.
+    private void SetPickaxePulse(bool ready)
+    {
+        if (_pickaxeButton == null) return;
+
+        if (ready)
+        {
+            // Becoming ready is the moment that must be noticed, so enter on the
+            // bright frame. The scheduler takes it back off 700ms later and the USS
+            // transition eases both directions from there.
+            if (!_pickaxeWasReady)
+                _pickaxeButton.AddToClassList("pickaxe-button--pulse");
+
+            _pickaxePulse?.Resume();
+        }
+        else
+        {
+            _pickaxePulse?.Pause();
+            _pickaxeButton.RemoveFromClassList("pickaxe-button--pulse");
+        }
+
+        _pickaxeWasReady = ready;
     }
 
     private void SetRescuePending(bool pending)
@@ -117,6 +180,15 @@ public class UIController : MonoBehaviour
     private void OnPickaxeClicked()
     {
         if (pickaxe != null) pickaxe.ToggleArmed();
+    }
+
+    // The player just did the thing the hint was asking for, so the hint has done
+    // its job. Fading on the FIRST placement rather than on a timer means a player
+    // who sat and read it never loses it early, and one who worked it out
+    // immediately is not lectured.
+    private void OnCrystalPlaced(Item placed, Cell cell)
+    {
+        _placeHint?.AddToClassList("place-hint--done");
     }
 
     // --- Sound --------------------------------------------------------------

@@ -49,6 +49,22 @@ public static class GameEvents
     /// Item and its Cell, read before either is torn down.</summary>
     public static event Action<Item, Cell> TileShattered;
 
+    /// <summary>Raised after the player places a crystal, before fusion resolves.
+    /// Args: the placed Item and its Cell.</summary>
+    public static event Action<Item, Cell> CrystalPlaced;
+
+    /// <summary>Raised when the upcoming-crystal queue changes. Arg: how many
+    /// crystals it is holding.</summary>
+    public static event Action<int> QueueChanged;
+
+    /// <summary>Raised when a red crystal reaches the top of its ladder and becomes
+    /// a live bomb. Arg: the armed Item.</summary>
+    public static event Action<Item> BombArmed;
+
+    /// <summary>Raised after a bomb detonates. Args: the blast's centre Cell and how
+    /// many items it cleared (the bomb itself included).</summary>
+    public static event Action<Cell, int> BombDetonated;
+
     // ---- Raisers -----------------------------------------------------------
     // Publishers call these instead of touching the events directly, so the
     // "?.Invoke() everywhere" rule lives in exactly one place.
@@ -69,6 +85,14 @@ public static class GameEvents
 
     public static void RaiseTileShattered(Item item, Cell cell) => TileShattered?.Invoke(item, cell);
 
+    public static void RaiseCrystalPlaced(Item placed, Cell cell) => CrystalPlaced?.Invoke(placed, cell);
+
+    public static void RaiseQueueChanged(int count) => QueueChanged?.Invoke(count);
+
+    public static void RaiseBombArmed(Item bomb) => BombArmed?.Invoke(bomb);
+
+    public static void RaiseBombDetonated(Cell centre, int cleared) => BombDetonated?.Invoke(centre, cleared);
+
     /// <summary>
     /// Static events keep their subscriber lists across Editor play sessions when
     /// "Enter Play Mode / Reload Domain" is disabled, silently leaking handlers
@@ -86,5 +110,9 @@ public static class GameEvents
         PickaxeChanged = null;
         JamRescuePending = null;
         TileShattered = null;
+        CrystalPlaced = null;
+        QueueChanged = null;
+        BombArmed = null;
+        BombDetonated = null;
     }
 }

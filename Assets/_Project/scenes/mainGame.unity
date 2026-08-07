@@ -2453,6 +2453,9 @@ GameObject:
   - component: {fileID: 1156920195}
   - component: {fileID: 1156920196}
   - component: {fileID: 1156920197}
+  - component: {fileID: 1156920198}
+  - component: {fileID: 1156920199}
+  - component: {fileID: 1156920200}
   m_Layer: 0
   m_Name: GridManager
   m_TagString: Untagged
@@ -2552,6 +2555,53 @@ MonoBehaviour:
   sfxVolume: 0.7
   basePitch: 0.85
   pitchPerTier: 1.09
+--- !u!114 &1156920198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1156920192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ce92ccac16a0436d8857cffecc61cd9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BombController
+  gridManager: {fileID: 1156920193}
+  blastRadius: 1
+  armTier: 3
+  pulseSpeed: 2.6
+--- !u!114 &1156920199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1156920192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6166d7f17c38545bdb50d2fe8dc272eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CrystalQueue
+  gridManager: {fileID: 1156920193}
+  visibleCount: 3
+  dropBelowBoard: 1.4
+  previewSpacing: 1.1
+--- !u!114 &1156920200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1156920192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ee93b848b9d04f10babd7e61fb69237, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlacementController
+  gridManager: {fileID: 1156920193}
+  mergeManager: {fileID: 1736714828}
+  queue: {fileID: 1156920199}
 --- !u!1 &1525116153
 GameObject:
   m_ObjectHideFlags: 0
@@ -3082,6 +3132,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MergeManager
   gridManager: {fileID: 1156920193}
+  groupSize: 3
 --- !u!4 &1736714829
 Transform:
   m_ObjectHideFlags: 0
@@ -3599,8 +3650,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputHandler
   gridManager: {fileID: 1156920193}
-  mergeManager: {fileID: 1736714828}
+  placement: {fileID: 1156920200}
   pickaxe: {fileID: 1156920196}
+  bombs: {fileID: 1156920198}
 --- !u!4 &1877011473
 Transform:
   m_ObjectHideFlags: 0
@@ -3699,21 +3751,21 @@ MonoBehaviour:
   mergeManager: {fileID: 1736714828}
   progressManager: {fileID: 1653937895}
   pickaxeController: {fileID: 1156920196}
+  bombs: {fileID: 1156920198}
+  crystalQueue: {fileID: 1156920199}
   screenFader: {fileID: 770344499}
   background: {fileID: 956265832}
   serviceLoader: {fileID: 1971728762}
   autoStartOnLoad: 0
   endlessRows: 6
   endlessCols: 6
-  startingEmptyChance: 0.28
-  startingGuaranteedPairs: 3
+  startingCrystals: 8
   difficulty:
-    _spawnCountThresholds: 5e010000b0040000
-    _tierUnlockThresholds: c8000000bc02000040060000
-    _tierFalloff: 0.45
-    _headroomBelowMaxTier: 3
-    _redUnlockScore: 400
-    _redSpawnChance: 0.12
+    _redUnlockScore: 250
+    _redRampScore: 3000
+    _maxRedChance: 0.22
+    _maxTier2Chance: 0.12
+    _tier2RampScore: 2000
 --- !u!4 &1979452698
 Transform:
   m_ObjectHideFlags: 0

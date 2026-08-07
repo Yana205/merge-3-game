@@ -125,16 +125,50 @@ Button:active {
 /* --- Pickaxe -----------------------------------------------------------
    Three states the player must be able to tell apart at a glance: empty
    (nothing to spend), ready (a charge banked), armed (the next tap shatters).
-   Armed borrows the pressed frame so the button visibly stays down — the board
-   is in a mode, and a flat button would not say so. */
 
-.pickaxe-button--empty {
-    opacity: 0.35;
+   Empty is genuinely DISABLED, not merely dimmed. It used to be dim but still
+   clickable, so a click on it ran TryArm(), got false back, and did nothing
+   visible — a control that accepts input and silently ignores it teaches the
+   player that it is broken.
+
+   Ready pulses. UI Toolkit has no keyframe animation, so UIController toggles
+   --pulse on a scheduler and the transition below does the easing. */
+
+.pickaxe-button {
+    transition-property: color, opacity, scale;
+    transition-duration: 0.35s, 0.35s, 0.35s;
+    transition-timing-function: ease-in-out;
 }
 
+.pickaxe-button--empty {
+    opacity: 0.3;
+}
+
+/* SetEnabled(false) also suppresses :hover and :active, so a disabled button
+   cannot light up under the cursor and promise something it will not do. */
+.pickaxe-button:disabled {
+    opacity: 0.3;
+    color: rgb(120, 150, 148);
+}
+
+.pickaxe-button--ready {
+    color: rgb(245, 197, 66);
+}
+
+/* Toggled on and off by UIController's scheduler. Only ever applied in the
+   ready state — a control that pulses in every state attracts nothing. */
+.pickaxe-button--pulse {
+    color: rgb(255, 246, 219);
+    scale: 1.05 1.05;
+}
+
+/* Last, so it wins over --ready and --pulse at equal specificity. Armed borrows
+   the pressed frame so the button visibly stays down — the board is in a mode,
+   and a flat button would not say so. */
 .pickaxe-button--armed {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
     color: rgb(245, 197, 66);
+    scale: 1 1;
 }
 
 /* The jam prompt. Gold on the panel, hidden until the board actually jams with
@@ -152,4 +186,36 @@ Button:active {
 
 .rescue-hint--visible {
     display: flex;
+}
+
+/* Absolutely positioned so it does not take part in .hud-root's top-left flow —
+   the score panel must not move because a hint appeared.
+
+   ABOVE the board, not below it. Below is where the queue previews live, and a
+   caption there lands directly on top of the three crystals it is describing. */
+.place-hint-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    align-items: center;
+}
+
+.place-hint {
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: rgb(245, 197, 66);
+    padding: 6px 14px;
+    background-color: rgba(12, 8, 32, 0.72);
+    border-radius: 4px;
+    transition-property: opacity;
+    transition-duration: 0.45s;
+    opacity: 1;
+}
+
+/* Faded rather than display:none — the row keeps its size, so nothing under the
+   board shifts at the moment the player makes their first move. */
+.place-hint--done {
+    opacity: 0;
 }

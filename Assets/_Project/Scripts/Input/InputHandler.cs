@@ -1,44 +1,73 @@
 using UnityEngine;
 using System;
 
-// CACHE AUDIT (Lesson 3.1)
-// - GetMouseWorldPos(): resolved Camera.main on every call — and it runs every
-//   Update frame while dragging. The camera is now cached in _camera (assigned
-//   once in Awake, with an error log if missing); the null guard is kept.
-// - HandlePointerDown()/HandlePointerUp(): per-collider col.GetComponent<Item>()
-//   and col.GetComponent<Cell>() calls replaced with col.TryGetComponent(out ...).
+/// <summary>
+/// One verb — put the next crystal on an empty cell — reachable two ways:
+///
+///   tap an EMPTY CELL          → the next crystal lands there
+///   drag the NEXT crystal      → onto an empty cell, and it lands there
+///   tap an ARMED BOMB          → detonate it
+///   tap ANY CRYSTAL            → shatter it, but only while the pickaxe is armed
+///
+/// The drag is not a second mechanic. It exists because the queue renders three
+/// real crystals in open space under the board, and that reads as "pick me up" to
+/// everyone who sees it — playtest confirmed the first instinct is to drag one onto
+/// the board and conclude the game is broken when nothing happens. Refusing the
+/// drag taught the player nothing; accepting it costs one state variable.
+///
+/// Empty cells light up under the cursor for the same reason: tapping bare
+/// background is not a verb anyone guesses, and it had no feedback at all.
+///
+/// The drag-to-MERGE path this class used to own is still gone. Fusion is automatic
+/// on placement, so no move names two crystals.
+/// </summary>
 public class InputHandler : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
     public GridManager gridManager;
-    public MergeManager mergeManager;
 
-    [Tooltip("Optional. When assigned, an armed pickaxe turns a tap on a gem into a " +
-             "shatter, and a jam with charges in hand becomes a rescue instead of a " +
-             "game over. Leave empty and the board plays exactly as it did before.")]
+    [Tooltip("The only thing this class needs to know about the rules: whether a " +
+             "tap on this cell turned into a placement.")]
+    [SerializeField] private PlacementController placement;
+
+    [Tooltip("Optional. When assigned, an armed pickaxe turns a tap on a crystal " +
+             "into a shatter, and a full board with charges in hand becomes a " +
+             "rescue instead of a game over.")]
     [SerializeField] private PickaxeController pickaxe;
+
+    [Tooltip("Optional. When assigned, a tap on a maxed red crystal detonates it, " +
+             "and a live bomb counts as a legal move so the run does not end while " +
+             "one is still on the board.")]
+    [SerializeField] private BombController bombs;
+
+    [Header("Feedback")]
+    [Tooltip("Tint laid over an empty cell under the cursor.\n\n" +
+             "Gold, and gold specifically. A cell's sprite renders WHITE and takes " +
+             "its blue from the crystal shader underneath, so a tint can only ever " +
+             "subtract — a bluish highlight just dims the cell and reads as nothing " +
+             "at all. Pulling the blue channel down is what makes this legible, and " +
+             "it matches the gold the HUD already uses for 'the game is talking to " +
+             "you'.")]
+    [SerializeField] private Color placeableTint = new Color(1f, 0.79f, 0.28f, 1f);
 
     public event Action OnGameOver;
 
-    /// <summary>
-    /// Raised after any successful move — merge or slide alike — and before the
-    /// jam check runs. LevelManager listens and spawns the move's gems; how many
-    /// and at what tier is a difficulty decision, which does not belong in the
-    /// input layer.
-    /// </summary>
+    /// <summary>Raised after a crystal is placed and its fusion has resolved, before
+    /// the loss check runs.</summary>
     public event Action OnMoveCompleted;
 
-    private Item _draggedItem;
-    private Cell _sourceCell;
-    private Vector2 _dragOffset;
-    private bool _isDragging;
     private bool _gameOver;
     private bool _inputEnabled = true;
     private bool _rescuePending;
     private Camera _camera;
 
-    private static readonly Color HighlightMerge = new Color(0.15f, 0.60f, 0.15f);
-    private static readonly Color HighlightMove  = new Color(0.30f, 0.30f, 0.50f);
+    // The NEXT crystal while it is being dragged. Borrowed from the queue, which
+    // stays its owner: any placement or cancel rebuilds the preview row and pools
+    // this instance, so it is only ever read between a press and its release.
+    private Item _carried;
+
+    // The empty cell currently lit up, so exactly one is ever tinted.
+    private Cell _hoveredCell;
 
     void Awake()
     {
@@ -49,153 +78,178 @@ public class InputHandler : MonoBehaviour
 
     void Update()
     {
-        if (_gameOver || !_inputEnabled) return;
-
-        if (Input.GetMouseButtonDown(0))
-            HandlePointerDown();
-
-        if (_isDragging)
-            HandleDrag();
-
-        if (Input.GetMouseButtonUp(0) && _isDragging)
-            HandlePointerUp();
-    }
-
-    void HandlePointerDown()
-    {
-        Vector2 worldPos = GetMouseWorldPos();
-        Collider2D[] hits = Physics2D.OverlapPointAll(worldPos);
-
-        foreach (Collider2D col in hits)
+        if (_gameOver || !_inputEnabled)
         {
-            if (col == null) continue;
-            if (col.TryGetComponent(out Item item))
-            {
-                // An armed pickaxe consumes the tap: shatter instead of drag. No
-                // drag state is set, so this never falls through to HandlePointerUp.
-                if (pickaxe != null && pickaxe.IsArmed)
-                {
-                    if (pickaxe.Shatter(item))
-                        AfterShatter();
-                    return;
-                }
-
-                StartDrag(item, worldPos);
-                return;
-            }
-        }
-    }
-
-    void StartDrag(Item item, Vector2 worldPos)
-    {
-        _draggedItem = item;
-        _isDragging = true;
-        _dragOffset = (Vector2)item.transform.position - worldPos;
-        _sourceCell = gridManager.FindCellWithItem(item);
-        HighlightAdjacentCells(_sourceCell, item.Tier, item.Family);
-    }
-
-    void HandleDrag()
-    {
-        if (_draggedItem == null) return;
-        _draggedItem.transform.position = GetMouseWorldPos() + _dragOffset;
-    }
-
-    void HandlePointerUp()
-    {
-        ClearAllHighlights();
-
-        if (_draggedItem == null)
-        {
-            _isDragging = false;
+            CancelCarry();
+            ClearHover();
             return;
         }
 
-        Vector2 worldPos = GetMouseWorldPos();
-        Collider2D[] hits = Physics2D.OverlapPointAll(worldPos);
+        if (Input.GetMouseButtonDown(0))
+            HandlePress();
+        else if (Input.GetMouseButtonUp(0) && _carried != null)
+            HandleRelease();
+        else if (_carried != null)
+            _carried.transform.position = GetMouseWorldPos();
 
-        Item targetItem = null;
-        Cell targetCell = null;
+        UpdateHover();
+    }
 
-        foreach (Collider2D col in hits)
+    // Everything under the cursor, in one place: a crystal sits on top of its cell,
+    // so a point over an occupied square hits both and the rules decide which the
+    // gesture meant.
+    void Probe(out Item item, out Cell cell)
+    {
+        item = null;
+        cell = null;
+
+        foreach (Collider2D col in Physics2D.OverlapPointAll(GetMouseWorldPos()))
         {
             if (col == null) continue;
-            if (col.TryGetComponent(out Item item) && item != _draggedItem) targetItem = item;
-            if (col.TryGetComponent(out Cell cell)) targetCell = cell;
+            if (item == null && col.TryGetComponent(out Item hitItem)) item = hitItem;
+            if (cell == null && col.TryGetComponent(out Cell hitCell)) cell = hitCell;
         }
-
-        if (targetCell == null && targetItem != null)
-            targetCell = gridManager.FindCellWithItem(targetItem);
-
-        bool success = false;
-
-        if (_sourceCell != null && targetCell != null && gridManager.AreAdjacent(_sourceCell, targetCell))
-        {
-            if (targetItem != null)
-            {
-                success = mergeManager.TryMerge(_draggedItem, targetItem);
-            }
-            else if (!targetCell.IsOccupied())
-            {
-                _sourceCell.RemoveItem();
-                targetCell.PlaceItem(_draggedItem);
-                _draggedItem.transform.position = targetCell.transform.position;
-                success = true;
-            }
-        }
-
-        if (!success)
-        {
-            if (_sourceCell != null)
-                _draggedItem.transform.position = _sourceCell.transform.position;
-        }
-        // If something locked input mid-call, skip the post-move spawn and
-        // game-over check so a frozen board stays frozen and clean.
-        else if (_inputEnabled)
-        {
-            AfterMove();
-        }
-
-        _draggedItem = null;
-        _sourceCell = null;
-        _isDragging = false;
     }
 
-    // Order is load-bearing: the spawn has to land before the jam check, or the
-    // check judges a board that is one move out of date.
-    void AfterMove()
+    void HandlePress()
     {
-        OnMoveCompleted?.Invoke();
-        CheckForJam();
-    }
+        Probe(out Item item, out Cell cell);
 
-    // A shatter is NOT a move: it deliberately does not raise OnMoveCompleted, so
-    // no gems spawn afterwards. Spawning here would hand back the cell the player
-    // just paid a charge for, which is the whole point of the tool.
-    //
-    // The jam check still runs, because freeing a cell is exactly what un-jams a
-    // board — and because a player who spends their last charge without fixing
-    // anything has genuinely reached the end of the run.
-    void AfterShatter()
-    {
-        CheckForJam();
-    }
-
-    // The board is lost only when there is no legal move AND no charge left to make
-    // one. Ending the run while the player still holds a pickaxe would make the
-    // tool worthless precisely when it is needed — you would bank three rescues and
-    // watch the game over screen anyway.
-    void CheckForJam()
-    {
-        bool jammed = gridManager.IsFull() && !gridManager.HasAnyValidMerge();
-
-        if (!jammed)
+        // Grabbing the NEXT crystal starts a drag. Checked before the pickaxe,
+        // which would otherwise swallow the press: Shatter refuses a preview and
+        // returns false, so an armed player could not pick one up at all.
+        if (placement != null && placement.IsNextHandle(item))
         {
-            if (_rescuePending)
+            _carried = item;
+            return;
+        }
+
+        // A live bomb wins over everything, including an armed pickaxe. Detonating
+        // is free and shattering costs a charge, so letting the pickaxe consume this
+        // tap would silently spend a rescue on the one crystal that did not need it.
+        if (item != null && item.IsArmedBomb && bombs != null)
+        {
+            if (bombs.Detonate(item) > 0)
             {
-                _rescuePending = false;
-                GameEvents.RaiseJamRescuePending(false);
+                pickaxe?.Disarm();
+                AfterBoardChange();
             }
+            return;
+        }
+
+        // An armed pickaxe consumes a tap on any crystal. Shatter refuses an item
+        // that is not on the grid, so the queue previews under the board are safe.
+        if (item != null && pickaxe != null && pickaxe.IsArmed)
+        {
+            if (pickaxe.Shatter(item))
+                AfterBoardChange();
+            return;
+        }
+
+        // Otherwise: an empty cell is a placement. An occupied one is a misclick and
+        // deliberately costs nothing — there is no penalty move in this game.
+        TryPlaceAt(cell);
+    }
+
+    // A drag ended. Dropping on an empty cell places there; dropping anywhere else
+    // is a change of mind, not a mistake, so the crystal simply goes home.
+    void HandleRelease()
+    {
+        Probe(out _, out Cell cell);
+
+        // Drop the reference first. TryPlace pops the queue, which rebuilds the
+        // preview row and pools the very item being carried — holding it across
+        // that call would leave a live handle on a recycled crystal.
+        _carried = null;
+
+        if (cell != null && !cell.IsOccupied())
+        {
+            TryPlaceAt(cell);
+            return;
+        }
+
+        placement?.CancelDrag();
+    }
+
+    void TryPlaceAt(Cell cell)
+    {
+        if (cell == null || cell.IsOccupied() || placement == null) return;
+
+        if (placement.TryPlace(cell))
+        {
+            ClearHover();          // the cell is occupied now; its tint is not ours to keep
+            OnMoveCompleted?.Invoke();
+            AfterBoardChange();
+        }
+    }
+
+    // Light the empty cell under the cursor. Without this, the one action in the
+    // game lands on bare background with no indication it is a target at all.
+    void UpdateHover()
+    {
+        Probe(out _, out Cell cell);
+
+        Cell target = (cell != null && !cell.IsOccupied()) ? cell : null;
+        if (target == _hoveredCell) return;
+
+        ClearHover();
+
+        if (target != null)
+        {
+            target.SetHighlight(placeableTint);
+            _hoveredCell = target;
+        }
+    }
+
+    void ClearHover()
+    {
+        if (_hoveredCell != null)
+            _hoveredCell.ClearHighlight();
+        _hoveredCell = null;
+    }
+
+    // Give back a crystal that is still under the cursor when input is taken away
+    // (game over, a freeze, a restart) rather than leaving it stranded there.
+    void CancelCarry()
+    {
+        if (_carried == null) return;
+        _carried = null;
+        placement?.CancelDrag();
+    }
+
+    void OnDisable()
+    {
+        CancelCarry();
+        ClearHover();
+    }
+
+    // Anything that changed what is on the board runs the loss check. Placement,
+    // shatter and detonation all land here; only placement counts as a "move" for
+    // the systems that care, which is why OnMoveCompleted is raised by the caller
+    // rather than from in here.
+    void AfterBoardChange()
+    {
+        CheckForLoss();
+    }
+
+    // The run ends when there is nowhere left to place. A live bomb or a banked
+    // pickaxe charge each still free cells, so neither state is a loss — ending the
+    // run with either in hand would make the tool worthless precisely when it is
+    // needed.
+    void CheckForLoss()
+    {
+        bool full = gridManager.IsFull();
+
+        if (!full)
+        {
+            ClearRescuePending();
+            return;
+        }
+
+        if (bombs != null && bombs.HasArmedBomb())
+        {
+            // The bomb is already visible and already pulsing; no prompt needed.
+            ClearRescuePending();
             return;
         }
 
@@ -216,60 +270,29 @@ public class InputHandler : MonoBehaviour
         OnGameOver?.Invoke();
     }
 
+    void ClearRescuePending()
+    {
+        if (!_rescuePending) return;
+        _rescuePending = false;
+        GameEvents.RaiseJamRescuePending(false);
+    }
+
     public void ResetState()
     {
         _gameOver = false;
         _inputEnabled = true;
-        _draggedItem = null;
-        _sourceCell = null;
-        _isDragging = false;
+        ClearRescuePending();
 
-        if (_rescuePending)
-        {
-            _rescuePending = false;
-            GameEvents.RaiseJamRescuePending(false);
-        }
+        // A fresh run rebuilds the board, so any cell this was tinting is already
+        // gone; drop the reference rather than reaching into a destroyed object.
+        _carried = null;
+        _hoveredCell = null;
     }
 
-    // Called by LevelManager to freeze/unfreeze board interaction
-    // (e.g. lock the board once the level is complete).
+    // Called by LevelManager to freeze/unfreeze board interaction.
     public void SetInputEnabled(bool enabled)
     {
         _inputEnabled = enabled;
-    }
-
-    // The green "you can merge here" glow has to agree with MergeManager exactly,
-    // so it matches on family as well as tier. Matching on tier alone would light
-    // up a red neighbour of the same number and then refuse the drop.
-    void HighlightAdjacentCells(Cell source, int tier, GemFamily family)
-    {
-        if (source == null) return;
-        for (int dr = -1; dr <= 1; dr++)
-        {
-            for (int dc = -1; dc <= 1; dc++)
-            {
-                if (dr == 0 && dc == 0) continue;
-                Cell neighbour = gridManager.GetCell(source.row + dr, source.col + dc);
-                if (neighbour == null) continue;
-
-                if (!neighbour.IsOccupied())
-                    neighbour.SetHighlight(HighlightMove);
-                else if (neighbour.CurrentItem.Tier == tier
-                         && neighbour.CurrentItem.Family == family
-                         && tier < Item.MaxTierFor(family))
-                    neighbour.SetHighlight(HighlightMerge);
-            }
-        }
-    }
-
-    void ClearAllHighlights()
-    {
-        for (int r = 0; r < gridManager.rows; r++)
-            for (int c = 0; c < gridManager.cols; c++)
-            {
-                Cell cell = gridManager.GetCell(r, c);
-                if (cell != null) cell.ClearHighlight();
-            }
     }
 
     Vector2 GetMouseWorldPos()
