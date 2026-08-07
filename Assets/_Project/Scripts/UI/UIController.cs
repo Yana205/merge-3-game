@@ -26,6 +26,7 @@ public class UIController : MonoBehaviour
     private Button _pickaxeButton;
     private Label _rescueHint;
     private Button _muteButton;
+    private Label _placeHint;
     // UI Toolkit has no keyframe animation, so the "ready" pulse is a scheduled
     // class toggle with the easing done by a USS transition. The handle is held so
     // OnDisable can stop it — a scheduler left running against a torn-down element
@@ -64,6 +65,7 @@ public class UIController : MonoBehaviour
         _pickaxeButton = root.Q<Button>("pickaxe-button");
         _rescueHint = root.Q<Label>("rescue-hint");
         _muteButton = root.Q<Button>("mute-button");
+        _placeHint = root.Q<Label>("place-hint");
 
         // Created paused. Every(...) starts a scheduled item running immediately,
         // and the button opens in the empty state where it must not pulse at all.
@@ -90,6 +92,7 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged += SetHighScore;
         GameEvents.PickaxeChanged += SetPickaxe;
         GameEvents.JamRescuePending += SetRescuePending;
+        GameEvents.CrystalPlaced += OnCrystalPlaced;
     }
 
     void OnDisable()
@@ -98,6 +101,7 @@ public class UIController : MonoBehaviour
         GameEvents.BestScoreChanged -= SetHighScore;
         GameEvents.PickaxeChanged -= SetPickaxe;
         GameEvents.JamRescuePending -= SetRescuePending;
+        GameEvents.CrystalPlaced -= OnCrystalPlaced;
 
         // The scheduler belongs in this pair too: it is a subscription in all but
         // name, and left running it keeps toggling a class on a dead element.
@@ -176,6 +180,15 @@ public class UIController : MonoBehaviour
     private void OnPickaxeClicked()
     {
         if (pickaxe != null) pickaxe.ToggleArmed();
+    }
+
+    // The player just did the thing the hint was asking for, so the hint has done
+    // its job. Fading on the FIRST placement rather than on a timer means a player
+    // who sat and read it never loses it early, and one who worked it out
+    // immediately is not lectured.
+    private void OnCrystalPlaced(Item placed, Cell cell)
+    {
+        _placeHint?.AddToClassList("place-hint--done");
     }
 
     // --- Sound --------------------------------------------------------------

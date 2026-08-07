@@ -53,6 +53,21 @@ public class CrystalQueue : MonoBehaviour
 
     public bool HasNext => _queue.Count > 0;
 
+    /// <summary>
+    /// The preview Item drawn for NEXT — the thing a player reaches for when they
+    /// try to drag a crystal onto the board. Null before the first render.
+    ///
+    /// Handed out so the input layer can carry it around under the cursor. It stays
+    /// the queue's to destroy: any Take() or RestorePreviews() rebuilds the row and
+    /// pools whatever was being dragged.
+    /// </summary>
+    public Item NextPreview => _previews.Count > 0 ? _previews[0] : null;
+
+    /// <summary>Put the preview row back where it belongs. Called when a drag is
+    /// released somewhere that is not a placement, so the carried crystal does not
+    /// stay stranded under the cursor.</summary>
+    public void RestorePreviews() => Render();
+
     void OnEnable()  => GameEvents.ScoreChanged += HandleScoreChanged;
     void OnDisable() => GameEvents.ScoreChanged -= HandleScoreChanged;
 

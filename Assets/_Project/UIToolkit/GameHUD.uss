@@ -187,3 +187,35 @@ Button:active {
 .rescue-hint--visible {
     display: flex;
 }
+
+/* Absolutely positioned so it does not take part in .hud-root's top-left flow —
+   the score panel must not move because a hint appeared.
+
+   ABOVE the board, not below it. Below is where the queue previews live, and a
+   caption there lands directly on top of the three crystals it is describing. */
+.place-hint-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    align-items: center;
+}
+
+.place-hint {
+    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: rgb(245, 197, 66);
+    padding: 6px 14px;
+    background-color: rgba(12, 8, 32, 0.72);
+    border-radius: 4px;
+    transition-property: opacity;
+    transition-duration: 0.45s;
+    opacity: 1;
+}
+
+/* Faded rather than display:none — the row keeps its size, so nothing under the
+   board shifts at the moment the player makes their first move. */
+.place-hint--done {
+    opacity: 0;
+}

@@ -16,6 +16,20 @@ public class PlacementController : MonoBehaviour
     [SerializeField] private CrystalQueue queue;
 
     /// <summary>
+    /// The on-screen crystal that stands for "what you are about to place". The
+    /// input layer needs to recognise it so a player who grabs it can drag it onto
+    /// the board — which is what everyone tries first, the row under the board
+    /// looking exactly like three objects waiting to be picked up.
+    ///
+    /// Exposed through here rather than handing InputHandler the queue itself, so
+    /// the input layer still knows nothing about rolling, refilling or difficulty.
+    /// </summary>
+    public bool IsNextHandle(Item item) => item != null && queue != null && item == queue.NextPreview;
+
+    /// <summary>Abandon a drag: put the preview row back the way it was.</summary>
+    public void CancelDrag() => queue?.RestorePreviews();
+
+    /// <summary>
     /// Place the queue's next crystal in <paramref name="cell"/> and resolve every
     /// fusion it completes. Returns false when the cell cannot take a crystal, so
     /// the caller can play a rejection instead of silently doing nothing.
