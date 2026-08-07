@@ -9,15 +9,14 @@ using UnityEngine;
 /// permanently dead cell the player was handed by a dice roll. Red was variance, not
 /// a decision.
 ///
-/// Now a maxed red ARMS instead. It sits on the board until the player taps it, then
-/// clears its whole 3x3 neighbourhood — their own cyan crystals included — and purges
-/// the corruption meter. That single change makes the red chain something a player
-/// can choose to grow: you pick where to build it knowing what you will have to
-/// sacrifice, and you pick when to spend it.
+/// Now a red that reaches <see cref="ArmTier"/> ARMS instead. It sits on the board
+/// until the player taps it, then clears its whole 3x3 neighbourhood — their own cyan
+/// crystals included. That single change makes the red chain something a player can
+/// choose to grow: you pick where to build it knowing what you will have to sacrifice,
+/// and you pick when to spend it.
 ///
-/// Owns the board half of the mechanic only. It does not touch corruption — it
-/// announces <see cref="GameEvents.BombDetonated"/> and LevelManager, which holds
-/// both references, does the purge.
+/// Owns the board half of the mechanic only. Everything else hangs off
+/// <see cref="GameEvents.BombDetonated"/>.
 /// </summary>
 public class BombController : MonoBehaviour
 {
@@ -29,16 +28,17 @@ public class BombController : MonoBehaviour
     [Min(1)]
     [SerializeField] private int blastRadius = 1;
 
-    [Tooltip("How far below the top of the red ladder a bomb arms.\n\n" +
-             "This is exponential, so it matters more than it looks: the red ladder " +
-             "tops out at tier 5, and every rung DOUBLES the reds needed. Arming at " +
-             "the very top (0) costs 16 tier-1 reds — more than most runs will ever " +
-             "see, so the bomb would be a mechanic the player only reads about. One " +
-             "rung down costs 8, which a run can realistically reach.\n\n" +
-             "An armed bomb refuses to merge (see MergeManager), so arming below the " +
-             "top does not leave a rung dangling — it moves the ceiling down.")]
-    [Min(0)]
-    [SerializeField] private int armTiersBelowMax = 1;
+    [Tooltip("The red tier that arms as a bomb.\n\n" +
+             "Stated outright rather than derived from the top of the red ladder, " +
+             "because the cost is exponential in the FUSE rule, not in the ladder " +
+             "length: three crystals per rung means tier 3 is nine tier-1 reds. Tier " +
+             "4 would be twenty-seven — more than a 36-cell board can stage, so the " +
+             "bomb would be a mechanic the player only ever reads about.\n\n" +
+             "An armed bomb refuses to fuse (see MergeManager and " +
+             "GridManager.GetConnectedGroup), so arming below the top of the ladder " +
+             "does not leave a rung dangling — it moves the ceiling down.")]
+    [Min(1)]
+    [SerializeField] private int armTier = 3;
 
     [Header("Glow")]
     [Tooltip("Pulses per second of the armed-bomb glow. Fast enough to read as " +
@@ -78,6 +78,9 @@ public class BombController : MonoBehaviour
     /// <summary>
     /// The red tier that becomes a bomb. Returns 0 when the red ladder is unwired,
     /// which disables the whole mechanic rather than arming every red on sight.
+    ///
+    /// Clamped to the top of the ladder so a configured tier the art does not reach
+    /// still arms something, instead of quietly never arming at all.
     /// </summary>
     public int ArmTier
     {
@@ -85,7 +88,7 @@ public class BombController : MonoBehaviour
         {
             int max = Item.MaxTierFor(GemFamily.Red);
             if (max <= 0) return 0;
-            return Mathf.Max(1, max - armTiersBelowMax);
+            return Mathf.Clamp(armTier, 1, max);
         }
     }
 
