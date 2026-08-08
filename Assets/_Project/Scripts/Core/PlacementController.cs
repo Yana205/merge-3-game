@@ -1,63 +1,48 @@
 using UnityEngine;
 
 /// <summary>
-/// The one move in the game: put the queue's next crystal on an empty cell and let
-/// fusion resolve.
+/// The one move in the game: swap two adjacent gems. If the swap makes a match it
+/// stands and the board resolves; if it makes nothing the gems snap back, so an
+/// illegal swap costs the player nothing.
 ///
-/// Kept separate from LevelManager because it is the only thing the input layer needs
-/// to talk to. InputHandler asks this "can I place here?" and gets a yes or no;
-/// it never learns that a queue, a difficulty curve or a fusion rule exist.
+/// Kept as the single thing the input layer talks to (its name is historical — it
+/// used to place crystals). InputHandler asks "can these two swap?" and gets a yes
+/// or no; it never learns that matches, gravity or refills exist.
 /// </summary>
 public class PlacementController : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
     [SerializeField] private GridManager gridManager;
     [SerializeField] private MergeManager mergeManager;
-    [SerializeField] private CrystalQueue queue;
 
-    /// <summary>
-    /// The on-screen crystal that stands for "what you are about to place". The
-    /// input layer needs to recognise it so a player who grabs it can drag it onto
-    /// the board — which is what everyone tries first, the row under the board
-    /// looking exactly like three objects waiting to be picked up.
-    ///
-    /// Exposed through here rather than handing InputHandler the queue itself, so
-    /// the input layer still knows nothing about rolling, refilling or difficulty.
-    /// </summary>
-    public bool IsNextHandle(Item item) => item != null && queue != null && item == queue.NextPreview;
-
-    /// <summary>Abandon a drag: put the preview row back the way it was.</summary>
-    public void CancelDrag() => queue?.RestorePreviews();
-
-    /// <summary>
-    /// Place the queue's next crystal in <paramref name="cell"/> and resolve every
-    /// fusion it completes. Returns false when the cell cannot take a crystal, so
-    /// the caller can play a rejection instead of silently doing nothing.
-    /// </summary>
-    public bool TryPlace(Cell cell)
+    /// <summary>Two cells are swappable only if they are orthogonal neighbours.</summary>
+    public bool AreAdjacent(Cell a, Cell b)
     {
-        if (gridManager == null || queue == null) return false;
-        if (cell == null || cell.IsOccupied()) return false;
-        if (!queue.HasNext) return false;
+        if (a == null || b == null) return false;
+        return Mathf.Abs(a.row - b.row) + Mathf.Abs(a.col - b.col) == 1;
+    }
 
-        // Take only once the placement is certain to succeed. Popping first and
-        // then failing would silently eat the crystal the player was looking at.
-        CrystalSpec spec = queue.Take();
+    /// <summary>
+    /// Swap the gems in <paramref name="a"/> and <paramref name="b"/>. Returns true
+    /// and resolves the board when the swap creates a match; returns false and
+    /// reverts the swap when it does not.
+    /// </summary>
+    public bool TrySwap(Cell a, Cell b)
+    {
+        if (mergeManager == null) return false;
+        if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
+        if (!AreAdjacent(a, b)) return false;
 
-        Item placed = gridManager.SpawnItem(cell, spec.Tier, spec.Family);
-        if (placed == null)
+        mergeManager.SwapItems(a, b);
+
+        if (mergeManager.HasAnyMatch())
         {
-            Debug.LogError("PlacementController: SpawnItem returned null for an empty cell.");
-            return false;
+            mergeManager.ResolveBoard();
+            return true;
         }
 
-        GameEvents.RaiseCrystalPlaced(placed, cell);
-
-        // Fusion is resolved from the tapped cell, so the result lands where the
-        // player aimed. Zero fusions is a perfectly ordinary outcome — most
-        // placements are building toward a group rather than completing one.
-        mergeManager?.ResolveAt(cell);
-
-        return true;
+        // No match: put them back. A swap that does nothing is not a move.
+        mergeManager.SwapItems(a, b);
+        return false;
     }
 }

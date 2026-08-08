@@ -67,6 +67,20 @@ public class UIController : MonoBehaviour
         _muteButton = root.Q<Button>("mute-button");
         _placeHint = root.Q<Label>("place-hint");
 
+        // The pickaxe / rescue belonged to the old place-and-fuse game. The match-3
+        // board is always full and never jams, so hide those controls entirely
+        // rather than showing a button that does nothing.
+        if (_pickaxeLabel != null && _pickaxeLabel.parent != null)
+            _pickaxeLabel.parent.style.display = DisplayStyle.None;
+        if (_pickaxeButton != null)
+            _pickaxeButton.style.display = DisplayStyle.None;
+        if (_rescueHint != null)
+            _rescueHint.style.display = DisplayStyle.None;
+
+        // Repurpose the one-line hint for the new verb.
+        if (_placeHint != null)
+            _placeHint.text = "SWIPE A GEM TO SWAP — MATCH 3 OR MORE";
+
         // Created paused. Every(...) starts a scheduled item running immediately,
         // and the button opens in the empty state where it must not pulse at all.
         if (_pickaxeButton != null)
@@ -211,6 +225,11 @@ public class UIController : MonoBehaviour
     private void OnScoreChanged(int total)
     {
         SetScore(total);
+
+        // Retire the hint once the player has scored — they clearly found the verb.
+        // (The old CrystalPlaced signal that used to do this no longer fires.)
+        if (total > 0)
+            _placeHint?.AddToClassList("place-hint--done");
     }
 
     // The UXML carries the SCORE / BEST captions in their own elements,

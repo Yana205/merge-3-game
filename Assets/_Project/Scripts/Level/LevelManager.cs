@@ -31,11 +31,6 @@ public class LevelManager : MonoBehaviour
              "run can forget the last run's bombs.")]
     [SerializeField] private BombController bombs;
 
-    [Tooltip("The player's supply. Refilled at the start of each run — AFTER the " +
-             "board is built, because building it reclaims every live Item " +
-             "including the queue's previews.")]
-    [SerializeField] private CrystalQueue crystalQueue;
-
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
     public BackgroundFitter background;
@@ -54,15 +49,6 @@ public class LevelManager : MonoBehaviour
     [Tooltip("Board size. Built once per run and never rebuilt.")]
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
-
-    [Tooltip("Tier-1 cyan crystals scattered on the opening board. Enough that the " +
-             "first few placements can complete something; few enough that the " +
-             "player is still the one building the board. 0 starts it empty.")]
-    [Min(0)]
-    [SerializeField] private int startingCrystals = 8;
-
-    [Header("Difficulty")]
-    [SerializeField] private DifficultyCurve difficulty = new DifficultyCurve();
 
     // ----- Runtime state -----------------------------------------------------
 
@@ -219,10 +205,6 @@ public class LevelManager : MonoBehaviour
 
         BuildStartingBoard();
 
-        // AFTER the board: CreateGrid runs ClearGrid, which reclaims every live Item
-        // this run — the queue's preview crystals included. Filling the queue first
-        // would leave three destroyed previews and an empty row under the board.
-        crystalQueue?.ResetRun(difficulty, 0);
         OnScoreChanged?.Invoke(CurrentScore, BestScore);
         GameEvents.RaiseBestScoreChanged(BestScore);
 
@@ -232,23 +214,50 @@ public class LevelManager : MonoBehaviour
             inputHandler.ResetState();
     }
 
-    // The one and only board build of a run. Everything after this is the player
-    // placing crystals by hand — nothing else ever adds one.
+    // The one and only board build of a run. The board is filled completely — a
+    // match-3 board is always full — with random colours chosen so no line of three
+    // exists at the start, then handed to MergeManager to guarantee a legal move.
     void BuildStartingBoard()
     {
         if (gridManager == null) return;
 
         gridManager.CreateGrid(endlessRows, endlessCols);
 
-        // A light scatter of tier-1 cyan so the first few placements can complete
-        // something. All one tier and all cyan by construction: the opening board is
-        // material to build with, not a puzzle to untangle.
-        for (int i = 0; i < startingCrystals; i++)
+        int colors = mergeManager != null ? mergeManager.ColorCount : 6;
+
+        for (int r = 0; r < endlessRows; r++)
         {
-            Cell cell = gridManager.GetRandomEmptyCell();
-            if (cell == null) break;
-            gridManager.SpawnItem(cell, 1, GemFamily.Standard);
+            for (int c = 0; c < endlessCols; c++)
+            {
+                int color = PickColorNoMatch(r, c, colors);
+                gridManager.SpawnItem(gridManager.GetCell(r, c), color, GemFamily.Standard);
+            }
         }
+
+        // A random fill can still deal a board with no possible swap; MergeManager
+        // reshuffles until at least one move exists.
+        mergeManager?.EnsurePlayable();
+    }
+
+    // A colour for cell (r,c) that does not complete a run of three with the two
+    // cells already placed to its left or below it. Filling left-to-right,
+    // bottom-to-top means those neighbours are the only ones that exist yet.
+    int PickColorNoMatch(int r, int c, int colors)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            int color = Random.Range(1, colors + 1);
+            if (c >= 2 && ColorAt(r, c - 1) == color && ColorAt(r, c - 2) == color) continue;
+            if (r >= 2 && ColorAt(r - 1, c) == color && ColorAt(r - 2, c) == color) continue;
+            return color;
+        }
+        return Random.Range(1, colors + 1);
+    }
+
+    int ColorAt(int r, int c)
+    {
+        Cell cell = gridManager.GetCell(r, c);
+        return (cell != null && cell.IsOccupied()) ? cell.CurrentItem.Tier : 0;
     }
 
     // A placement resolved (and any fusion with it). Nothing spawns here any more —
