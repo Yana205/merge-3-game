@@ -22,6 +22,13 @@ public class PlacementController : MonoBehaviour
         return Mathf.Abs(a.row - b.row) + Mathf.Abs(a.col - b.col) == 1;
     }
 
+    /// <summary>Would swapping these two adjacent gems form a match? Lets the input
+    /// layer animate a real swap or a bounce-back before committing.</summary>
+    public bool WouldMatch(Cell a, Cell b)
+    {
+        return mergeManager != null && AreAdjacent(a, b) && mergeManager.WouldSwapMatch(a, b);
+    }
+
     /// <summary>
     /// Swap the gems in <paramref name="a"/> and <paramref name="b"/>. Returns true
     /// and resolves the board when the swap creates a match; returns false and

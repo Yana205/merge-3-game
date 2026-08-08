@@ -217,16 +217,18 @@ public class MergeManager : MonoBehaviour
             for (int c = 0; c < Cols; c++)
             {
                 Cell here = gridManager.GetCell(r, c);
-                if (SwapMakesMatch(here, gridManager.GetCell(r, c + 1))) return true;
-                if (SwapMakesMatch(here, gridManager.GetCell(r + 1, c))) return true;
+                if (WouldSwapMatch(here, gridManager.GetCell(r, c + 1))) return true;
+                if (WouldSwapMatch(here, gridManager.GetCell(r + 1, c))) return true;
             }
         }
         return false;
     }
 
-    // Tentatively swap, test, and always swap back — a pure query with no lasting
-    // effect on the board.
-    private bool SwapMakesMatch(Cell a, Cell b)
+    /// <summary>Would swapping these two adjacent gems create a match? A pure query:
+    /// it swaps, tests, and always swaps back, leaving the board unchanged. Used both
+    /// by the playability check and by the input layer to decide whether to animate a
+    /// committed swap or a bounce-back.</summary>
+    public bool WouldSwapMatch(Cell a, Cell b)
     {
         if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
         SwapItems(a, b);
