@@ -37,6 +37,16 @@ public class InputHandler : MonoBehaviour
     [Range(0.1f, 0.9f)]
     [SerializeField] private float swipeFraction = 0.35f;
 
+    [Header("Debug (temporary)")]
+    [Tooltip("When on: logs every mouse press/release, pulses a guaranteed-valid " +
+             "swap so you can see what should work, and lets SPACE play that swap " +
+             "(to prove the pipeline works without the mouse).")]
+    [SerializeField] private bool debug = true;
+
+    private Item _hintA, _hintB;
+    private Vector3 _hintABase = Vector3.one, _hintBBase = Vector3.one;
+    private float _hintClock;
+
     // Kept so LevelManager's existing subscriptions still bind. OnGameOver never
     // fires in the endless match-3 game — the board reshuffles instead of dead-
     // ending — but the seam is left in place for a future move/time limit.
@@ -74,18 +84,74 @@ public class InputHandler : MonoBehaviour
 
         // Swallow input while a swap is sliding, so a second click cannot interleave
         // with the animation and the logical commit that follows it.
-        if (_animating) return;
+        if (_animating) { ClearHint(); return; }
 
         if (Input.GetMouseButtonDown(0))
             HandleDown();
         else if (Input.GetMouseButtonUp(0))
             HandleUp();
+
+        if (debug)
+            DebugUpdate();
+    }
+
+    // --- Debug aids (remove once input feels right) --------------------------
+
+    // Pulse a guaranteed-valid swap so the player can see a concrete example of a
+    // move that works, and let SPACE perform it to prove the swap pipeline is fine
+    // independent of the mouse.
+    void DebugUpdate()
+    {
+        // Only hint on a settled board — not mid-selection or mid-swap.
+        if (_selected != null || _animating || placement == null) { ClearHint(); return; }
+
+        if (placement.TryFindHintMove(out Cell a, out Cell b) && a.IsOccupied() && b.IsOccupied())
+        {
+            Item na = a.CurrentItem, nb = b.CurrentItem;
+            if (na != _hintA || nb != _hintB)
+            {
+                ClearHint();
+                _hintA = na; _hintB = nb;
+                _hintABase = na.transform.localScale;
+                _hintBBase = nb.transform.localScale;
+            }
+
+            _hintClock += Time.deltaTime;
+            float p = 1f + 0.14f * Mathf.Sin(_hintClock * 6f);
+            if (_hintA != null) _hintA.transform.localScale = _hintABase * p;
+            if (_hintB != null) _hintB.transform.localScale = _hintBBase * p;
+
+            // SPACE plays the hinted swap — a mouse-free path through the exact same
+            // DoSwap the mouse uses.
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Debug.Log($"[Input] SPACE plays hint swap ({a.row},{a.col})<->({b.row},{b.col})");
+                ClearHint();
+                DoSwap(a, b);
+            }
+        }
+        else
+        {
+            ClearHint();
+        }
+    }
+
+    void ClearHint()
+    {
+        if (_hintA != null) _hintA.transform.localScale = _hintABase;
+        if (_hintB != null) _hintB.transform.localScale = _hintBBase;
+        _hintA = null; _hintB = null;
     }
 
     void HandleDown()
     {
         _pressWorld = GetMouseWorldPos();
         Cell cell = ProbeCell();
+
+        if (debug)
+            Debug.Log(cell == null
+                ? $"[Input] DOWN at {_pressWorld} hit NO cell (click nearer a gem's centre)"
+                : $"[Input] DOWN on cell ({cell.row},{cell.col}) occupied={cell.IsOccupied()}");
 
         // Pressed empty space / off the board: drop any pending selection.
         if (cell == null || !cell.IsOccupied())
@@ -110,6 +176,10 @@ public class InputHandler : MonoBehaviour
 
         Vector2 delta = GetMouseWorldPos() - _pressWorld;
         float threshold = gridManager != null ? gridManager.cellSize * swipeFraction : 0.4f;
+
+        if (debug)
+            Debug.Log($"[Input] UP dragDist={delta.magnitude:F2} threshold={threshold:F2} " +
+                      (delta.magnitude < threshold ? "(tap — kept selection)" : "(swipe)"));
 
         // Not far enough to be a swipe: leave the gem selected so a following tap on
         // a neighbour completes the move.
@@ -136,8 +206,11 @@ public class InputHandler : MonoBehaviour
 
     void DoSwap(Cell a, Cell b)
     {
+        ClearHint();
         ClearSelection();
         if (placement == null || a == null || b == null) return;
+        if (debug)
+            Debug.Log($"[Input] SWAP ({a.row},{a.col})<->({b.row},{b.col}) willMatch={placement.WouldMatch(a, b)}");
         StartCoroutine(SwapRoutine(a, b));
     }
 
@@ -201,6 +274,7 @@ public class InputHandler : MonoBehaviour
 
     void Select(Cell cell)
     {
+        ClearHint();
         ClearSelection();
         _selected = cell;
         _selectedItem = cell.CurrentItem;
@@ -223,6 +297,7 @@ public class InputHandler : MonoBehaviour
     {
         StopAllCoroutines();
         _animating = false;
+        ClearHint();
         ClearSelection();
     }
 
@@ -244,6 +319,8 @@ public class InputHandler : MonoBehaviour
         _inputEnabled = true;
         _selected = null;
         _selectedItem = null;
+        _hintA = null;
+        _hintB = null;
     }
 
     // Called by LevelManager to freeze/unfreeze board interaction.

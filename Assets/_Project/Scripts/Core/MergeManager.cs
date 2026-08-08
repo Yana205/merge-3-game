@@ -224,6 +224,26 @@ public class MergeManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>Find the first swap on the board that would make a match, as two
+    /// adjacent cells. Returns false (with null outs) when the board has no move —
+    /// which should not happen after EnsurePlayable, but the input hint asks anyway.</summary>
+    public bool TryFindHintMove(out Cell a, out Cell b)
+    {
+        for (int r = 0; r < Rows; r++)
+        {
+            for (int c = 0; c < Cols; c++)
+            {
+                Cell here = gridManager.GetCell(r, c);
+                Cell right = gridManager.GetCell(r, c + 1);
+                if (WouldSwapMatch(here, right)) { a = here; b = right; return true; }
+                Cell up = gridManager.GetCell(r + 1, c);
+                if (WouldSwapMatch(here, up)) { a = here; b = up; return true; }
+            }
+        }
+        a = null; b = null;
+        return false;
+    }
+
     /// <summary>Would swapping these two adjacent gems create a match? A pure query:
     /// it swaps, tests, and always swaps back, leaving the board unchanged. Used both
     /// by the playability check and by the input layer to decide whether to animate a

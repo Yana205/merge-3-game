@@ -29,6 +29,15 @@ public class PlacementController : MonoBehaviour
         return mergeManager != null && AreAdjacent(a, b) && mergeManager.WouldSwapMatch(a, b);
     }
 
+    /// <summary>The first swap on the board that would make a match — used by the
+    /// input layer's debug hint.</summary>
+    public bool TryFindHintMove(out Cell a, out Cell b)
+    {
+        if (mergeManager != null) return mergeManager.TryFindHintMove(out a, out b);
+        a = null; b = null;
+        return false;
+    }
+
     /// <summary>
     /// Swap the gems in <paramref name="a"/> and <paramref name="b"/>. Returns true
     /// and resolves the board when the swap creates a match; returns false and
