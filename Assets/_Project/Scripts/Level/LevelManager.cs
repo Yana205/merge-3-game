@@ -1,14 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// Runs the game as a single endless board. There is no level select, no authored
-/// level data, and no depth: one grid is built when the run starts and lives until
-/// it jams. Difficulty is not a stage the player crosses into — it is a continuous
-/// function of the running score, applied on every move by <see cref="DifficultyCurve"/>.
-///
-/// This manager owns the spawn decision because it is the only object that already
-/// holds references to all three parties: the score, the grid, and the input that
-/// signals a completed move.
+/// Runs the game as a single endless match-3 board: one grid is built when the
+/// run starts, kept full and always playable by MergeManager, and never rebuilt.
+/// This manager owns run lifecycle only — start, restart, score relay — because
+/// it is the one object that already holds references to all three parties: the
+/// score, the grid, and the input that signals a completed move.
 /// </summary>
 public class LevelManager : MonoBehaviour
 {
@@ -23,13 +20,6 @@ public class LevelManager : MonoBehaviour
     // serialization and for future direct-hook needs.
     public MergeManager mergeManager;
     [SerializeField] private ProgressManager progressManager;
-    [Tooltip("Optional. Cleared at the start of each run so banked charges never " +
-             "carry over into a fresh board.")]
-    [SerializeField] private PickaxeController pickaxeController;
-
-    [Tooltip("Optional. Owns the armed red crystals. Referenced here only so a new " +
-             "run can forget the last run's bombs.")]
-    [SerializeField] private BombController bombs;
 
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
@@ -193,16 +183,6 @@ public class LevelManager : MonoBehaviour
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
         _localScore = 0;
 
-        // After the score reset, not before: PickaxeController watches ScoreChanged
-        // to move its goalpost, so resetting it first would let the reset-to-zero
-        // event walk the goalpost straight back down again.
-        pickaxeController?.ResetRun();
-
-        // Before the board is built, so the wipe cannot catch a crystal from the new
-        // board. The old board's Items are pooled by CreateGrid without passing
-        // through BombController, which would otherwise keep tracking them.
-        bombs?.ResetRun();
-
         BuildStartingBoard();
 
         OnScoreChanged?.Invoke(CurrentScore, BestScore);
@@ -220,6 +200,9 @@ public class LevelManager : MonoBehaviour
     void BuildStartingBoard()
     {
         if (gridManager == null) return;
+
+        // A restart can land mid-cascade; kill the pipeline before its gems die.
+        mergeManager?.CancelResolve();
 
         gridManager.CreateGrid(endlessRows, endlessCols);
 
@@ -270,8 +253,7 @@ public class LevelManager : MonoBehaviour
     }
 
     // Bus handler: ScoreController owns the number and raises ScoreChanged after
-    // every change. With no target to clear, this is now purely a HUD relay — the
-    // score's only mechanical job is feeding DifficultyCurve on the next move.
+    // every change. With no target to clear, this is purely a HUD/leaderboard relay.
     void HandleScoreChanged(int total)
     {
         if (!_runActive) return;

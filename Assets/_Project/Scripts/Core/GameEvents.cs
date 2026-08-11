@@ -4,10 +4,10 @@ using UnityEngine;
 /// <summary>
 /// Global event bus for cross-system, "anyone can listen" signals — the Observer
 /// pattern at the app level. Publishers raise; subscribers react; neither holds a
-/// reference to the other, so systems stay decoupled (e.g. a merge can add score
+/// reference to the other, so systems stay decoupled (e.g. a match can add score
 /// without MergeManager ever knowing ScoreController exists).
 ///
-/// Use this bus for GLOBAL signals (score changed, a tile merged, a save wanted).
+/// Use this bus for GLOBAL signals (score changed, a gem cleared, a save wanted).
 /// For a parent that owns a specific child instance, prefer a DIRECT event on the
 /// child (see <see cref="Item.OnDespawned"/>) rather than routing through here.
 ///
@@ -24,8 +24,23 @@ public static class GameEvents
     /// <summary>Raised after the running score total changes. Arg: the new total.</summary>
     public static event Action<int> ScoreChanged;
 
-    /// <summary>Raised after two tiles merge into a higher tier. Args: the new merged Item and its Cell.</summary>
+    /// <summary>Raised once per gem as a match clears it, BEFORE it despawns —
+    /// listeners can still read its colour, data and world position.
+    /// Args: the doomed Item and its Cell.</summary>
     public static event Action<Item, Cell> TileMerged;
+
+    /// <summary>Raised once per match group as it pops. Args: cascade combo level
+    /// (1 = the swap's own match, 2+ = cascades), gems cleared in this group,
+    /// points the group is worth, and the group's world-space centre.</summary>
+    public static event Action<int, int, int, Vector3> MatchResolved;
+
+    /// <summary>Raised when a swap is refused because it makes no match.
+    /// Arg: the midpoint of the two gems, for a "denied" effect there.</summary>
+    public static event Action<Vector3> SwapDenied;
+
+    /// <summary>Raised when the player selects a gem (tap or press). Arg: the gem's
+    /// world position. Exists so feedback (a click sound) stays out of input code.</summary>
+    public static event Action<Vector3> GemSelected;
 
     /// <summary>Raised when a system wants persistent state written to disk.</summary>
     public static event Action SaveRequested;
@@ -36,62 +51,26 @@ public static class GameEvents
     /// <summary>Raised when the best recorded score changes. Arg: the new best.</summary>
     public static event Action<int> BestScoreChanged;
 
-    /// <summary>Raised when pickaxe charges are earned/spent or the tool is armed
-    /// or disarmed. Args: (charges in hand, armed).</summary>
-    public static event Action<int, bool> PickaxeChanged;
-
-    /// <summary>Raised when the board has jammed but the player still holds a
-    /// charge — the run is not over, the pickaxe is the only legal move. Arg: true
-    /// when entering that state, false when it clears.</summary>
-    public static event Action<bool> JamRescuePending;
-
-    /// <summary>Raised when a gem is shattered by the pickaxe. Args: the doomed
-    /// Item and its Cell, read before either is torn down.</summary>
-    public static event Action<Item, Cell> TileShattered;
-
-    /// <summary>Raised after the player places a crystal, before fusion resolves.
-    /// Args: the placed Item and its Cell.</summary>
-    public static event Action<Item, Cell> CrystalPlaced;
-
-    /// <summary>Raised when the upcoming-crystal queue changes. Arg: how many
-    /// crystals it is holding.</summary>
-    public static event Action<int> QueueChanged;
-
-    /// <summary>Raised when a red crystal reaches the top of its ladder and becomes
-    /// a live bomb. Arg: the armed Item.</summary>
-    public static event Action<Item> BombArmed;
-
-    /// <summary>Raised after a bomb detonates. Args: the blast's centre Cell and how
-    /// many items it cleared (the bomb itself included).</summary>
-    public static event Action<Cell, int> BombDetonated;
-
     // ---- Raisers -----------------------------------------------------------
     // Publishers call these instead of touching the events directly, so the
     // "?.Invoke() everywhere" rule lives in exactly one place.
 
     public static void RaiseScoreChanged(int newTotal) => ScoreChanged?.Invoke(newTotal);
 
-    public static void RaiseTileMerged(Item merged, Cell cell) => TileMerged?.Invoke(merged, cell);
+    public static void RaiseTileMerged(Item cleared, Cell cell) => TileMerged?.Invoke(cleared, cell);
+
+    public static void RaiseMatchResolved(int combo, int gemCount, int points, Vector3 centre)
+        => MatchResolved?.Invoke(combo, gemCount, points, centre);
+
+    public static void RaiseSwapDenied(Vector3 centre) => SwapDenied?.Invoke(centre);
+
+    public static void RaiseGemSelected(Vector3 position) => GemSelected?.Invoke(position);
 
     public static void RaiseSaveRequested() => SaveRequested?.Invoke();
 
     public static void RaiseRestartRequested() => RestartRequested?.Invoke();
 
     public static void RaiseBestScoreChanged(int best) => BestScoreChanged?.Invoke(best);
-
-    public static void RaisePickaxeChanged(int charges, bool armed) => PickaxeChanged?.Invoke(charges, armed);
-
-    public static void RaiseJamRescuePending(bool pending) => JamRescuePending?.Invoke(pending);
-
-    public static void RaiseTileShattered(Item item, Cell cell) => TileShattered?.Invoke(item, cell);
-
-    public static void RaiseCrystalPlaced(Item placed, Cell cell) => CrystalPlaced?.Invoke(placed, cell);
-
-    public static void RaiseQueueChanged(int count) => QueueChanged?.Invoke(count);
-
-    public static void RaiseBombArmed(Item bomb) => BombArmed?.Invoke(bomb);
-
-    public static void RaiseBombDetonated(Cell centre, int cleared) => BombDetonated?.Invoke(centre, cleared);
 
     /// <summary>
     /// Static events keep their subscriber lists across Editor play sessions when
@@ -104,15 +83,11 @@ public static class GameEvents
     {
         ScoreChanged = null;
         TileMerged = null;
+        MatchResolved = null;
+        SwapDenied = null;
+        GemSelected = null;
         SaveRequested = null;
         RestartRequested = null;
         BestScoreChanged = null;
-        PickaxeChanged = null;
-        JamRescuePending = null;
-        TileShattered = null;
-        CrystalPlaced = null;
-        QueueChanged = null;
-        BombArmed = null;
-        BombDetonated = null;
     }
 }

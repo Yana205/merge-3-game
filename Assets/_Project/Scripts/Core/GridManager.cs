@@ -157,10 +157,20 @@ public class GridManager : MonoBehaviour
 
     public Item SpawnItem(Cell cell, int tier = 1, GemFamily family = GemFamily.Standard)
     {
+        return SpawnItem(cell, tier, family, cell != null ? cell.transform.position : Vector3.zero);
+    }
+
+    /// <summary>
+    /// Spawn a gem owned by <paramref name="cell"/> but VISUALLY at
+    /// <paramref name="visualPos"/> — how refill drops enter from above the board.
+    /// The caller animates the transform down to the cell.
+    /// </summary>
+    public Item SpawnItem(Cell cell, int tier, GemFamily family, Vector3 visualPos)
+    {
         if (cell == null || cell.IsOccupied())
             return null;
 
-        Item item = CreateItem(cell.transform.position);
+        Item item = CreateItem(visualPos);
         if (item == null)
             return null;
 
@@ -173,7 +183,9 @@ public class GridManager : MonoBehaviour
         // pooled object).
         item.OnDespawned += HandleItemDespawned;
 
-        cell.PlaceItem(item);
+        // snap: false — the item is already at visualPos; the plain overload passes
+        // the cell's own position so nothing changes for normal spawns.
+        cell.PlaceItem(item, snap: false);
         _liveItems.Add(item);
         return item;
     }
@@ -228,87 +240,13 @@ public class GridManager : MonoBehaviour
         return emptyCells[Random.Range(0, emptyCells.Count)];
     }
 
-    /// <summary>
-    /// Every cell reachable from <paramref name="origin"/> through ORTHOGONAL
-    /// neighbours holding the identical crystal — same family and same tier.
-    /// Includes the origin itself, so the result is never empty for an occupied
-    /// cell. Returns an empty list for a null or empty origin.
-    ///
-    /// Orthogonal on purpose. With diagonals on a 6x6 board, groups of three form
-    /// almost by accident and the puzzle evaporates; 4-way is also the rule every
-    /// classic merge game uses.
-    ///
-    /// Armed bombs are excluded from both ends of the walk: a bomb is a button, not
-    /// a crystal, and a fourth red landing beside a finished bomb must not be able
-    /// to fuse it back into an ordinary gem.
-    /// </summary>
-    public List<Cell> GetConnectedGroup(Cell origin)
-    {
-        var group = new List<Cell>();
-        if (grid == null || origin == null || !origin.IsOccupied()) return group;
-        if (origin.CurrentItem.IsArmedBomb) return group;
-
-        int tier = origin.CurrentItem.Tier;
-        GemFamily family = origin.CurrentItem.Family;
-
-        var seen = new HashSet<Cell> { origin };
-        var frontier = new Queue<Cell>();
-        frontier.Enqueue(origin);
-        group.Add(origin);
-
-        // Orthogonal only: no diagonals in this table, and that is the whole rule.
-        var steps = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
-
-        while (frontier.Count > 0)
-        {
-            Cell cell = frontier.Dequeue();
-            foreach ((int dr, int dc) in steps)
-            {
-                Cell next = GetCell(cell.row + dr, cell.col + dc);
-                if (next == null || seen.Contains(next)) continue;
-                if (!next.IsOccupied()) continue;
-
-                Item item = next.CurrentItem;
-                if (item.IsArmedBomb) continue;
-                if (item.Tier != tier || item.Family != family) continue;
-
-                seen.Add(next);
-                group.Add(next);
-                frontier.Enqueue(next);
-            }
-        }
-
-        return group;
-    }
-
-    /// <summary>
-    /// Spawn an Item at a world position with no Cell behind it — used for the
-    /// queue previews below the board.
-    ///
-    /// A loose item is deliberately inert: placement requires an empty Cell, and
-    /// PickaxeController.Shatter already refuses an item that FindCellWithItem
-    /// cannot locate, so tapping a preview does nothing in every input mode.
-    ///
-    /// It IS registered in _liveItems, so ClearGrid reclaims it — which means the
-    /// queue must re-render AFTER a board rebuild, never before.
-    /// </summary>
-    public Item SpawnLooseItem(Vector3 position, int tier, GemFamily family)
-    {
-        Item item = CreateItem(position);
-        if (item == null) return null;
-
-        item.Setup(tier, family);
-        item.OnDespawned += HandleItemDespawned;
-        _liveItems.Add(item);
-        return item;
-    }
-
     /// <summary>World-space centre of the board, so callers can lay things out
     /// relative to it without duplicating the origin maths in CreateGrid.</summary>
     public Vector3 BoardCentre => transform.position;
 
-    /// <summary>World-space Y of the row below the bottom of the board.</summary>
-    public float BottomEdgeY => transform.position.y - ((rows - 1) * cellSize) / 2f;
+    /// <summary>World-space Y of the topmost row, so refill spawns can stack new
+    /// gems just above the visible board before dropping them in.</summary>
+    public float TopEdgeY => transform.position.y + ((rows - 1) * cellSize) / 2f;
 
     public bool IsFull()
     {

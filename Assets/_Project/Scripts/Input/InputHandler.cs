@@ -8,12 +8,15 @@ using System.Collections;
 ///   swipe a gem toward a neighbour   → the two swap
 ///   tap a gem, then tap a neighbour  → the two swap
 ///
-/// Feedback is the whole job of this class beyond the gesture: the selected gem
-/// grows so you can see what you picked (the cell highlight underneath is useless
-/// now that a gem covers every cell), and EVERY swap animates. A swap that makes a
-/// match slides and commits; a swap that makes nothing slides and bounces straight
-/// back, so an illegal move reads as "not that one", not as a dead click. After a
-/// few idle seconds a valid move pulses as a hint.
+/// Feel is the whole job of this class beyond the gesture:
+///   • the selected gem breathes (a soft pulse) so the pick is unmissable,
+///   • a committed swap slides with a springy overshoot (Ease.OutBack),
+///   • an illegal swap leans toward the neighbour, bounces home and shakes its
+///     head — "not that one", never a dead click,
+///   • after a few idle seconds a valid move pulses as a hint.
+///
+/// While the board is resolving (PlacementController.IsBusy) input is swallowed,
+/// so the player can never interleave with the cascade.
 /// </summary>
 public class InputHandler : MonoBehaviour
 {
@@ -25,14 +28,24 @@ public class InputHandler : MonoBehaviour
              "startup if the inspector link is missing.")]
     [SerializeField] private PlacementController placement;
 
-    [Header("Feedback")]
-    [Tooltip("How much the selected gem grows, so the picked gem is obvious.")]
+    [Header("Feel — selection")]
+    [Tooltip("Resting size of the selected gem's pulse.")]
     [Range(1f, 1.5f)]
-    [SerializeField] private float selectedScale = 1.18f;
+    [SerializeField] private float selectedScale = 1.14f;
 
-    [Tooltip("Seconds for a gem to slide one cell during a swap.")]
+    [Tooltip("How much the selected gem breathes around that size.")]
+    [Range(0f, 0.2f)]
+    [SerializeField] private float selectedPulse = 0.05f;
+
+    [Header("Feel — swap")]
+    [Tooltip("Seconds for a gem to slide one cell during a committed swap.")]
     [Range(0.05f, 0.4f)]
-    [SerializeField] private float swapAnimTime = 0.12f;
+    [SerializeField] private float swapAnimTime = 0.16f;
+
+    [Tooltip("How far a refused swap leans toward the neighbour before bouncing " +
+             "home, as a fraction of the distance.")]
+    [Range(0.1f, 0.6f)]
+    [SerializeField] private float deniedReach = 0.35f;
 
     [Tooltip("How far the cursor must travel from the pressed gem, as a fraction of " +
              "one cell, before the gesture counts as a swipe rather than a tap.")]
@@ -48,7 +61,8 @@ public class InputHandler : MonoBehaviour
     // ending — but the seam is left in place for a future move/time limit.
     public event Action OnGameOver;
 
-    /// <summary>Raised after a swap resolves into a move.</summary>
+    /// <summary>Raised after a swap commits into a move (the cascade may still be
+    /// resolving when this fires).</summary>
     public event Action OnMoveCompleted;
 
     private bool _inputEnabled = true;
@@ -60,12 +74,10 @@ public class InputHandler : MonoBehaviour
     // where the press that may become a swipe began.
     private Cell _selected;
     private Item _selectedItem;
-    private Vector3 _selectedBaseScale = Vector3.one;
     private Vector2 _pressWorld;
 
-    // Idle-hint state: the pulsing pair, their resting scales, and the idle timer.
+    // Idle-hint state: the pulsing pair and the idle timer.
     private Item _hintA, _hintB;
-    private Vector3 _hintABase = Vector3.one, _hintBBase = Vector3.one;
     private float _idleClock;
 
     void Awake()
@@ -75,9 +87,8 @@ public class InputHandler : MonoBehaviour
             Debug.LogError("InputHandler: no camera tagged 'MainCamera' found in the scene.");
 
         // Self-wire the references the swap needs. The scene's serialized links can
-        // go stale across a rewrite (the PlacementController link came up null after
-        // the match-3 conversion, which silently killed every swap), so fall back to
-        // finding them rather than depending on inspector wiring alone.
+        // go stale across a rewrite, so fall back to finding them rather than
+        // depending on inspector wiring alone.
         if (placement == null)
             placement = FindFirstObjectByType<PlacementController>();
         if (gridManager == null)
@@ -96,15 +107,21 @@ public class InputHandler : MonoBehaviour
             return;
         }
 
-        // Swallow input while a swap is sliding, so a second click cannot interleave
-        // with the animation and the logical commit that follows it.
-        if (_animating) { ClearHint(); return; }
+        // Swallow input while a swap slides or the board cascades, so a click can
+        // never interleave with an animation or the logical commit behind it.
+        if (_animating || (placement != null && placement.IsBusy))
+        {
+            _idleClock = 0f;
+            ClearHint();
+            return;
+        }
 
         if (Input.GetMouseButtonDown(0))
             HandleDown();
         else if (Input.GetMouseButtonUp(0))
             HandleUp();
 
+        AnimateSelection();
         UpdateIdleHint();
     }
 
@@ -171,7 +188,7 @@ public class InputHandler : MonoBehaviour
         StartCoroutine(SwapRoutine(a, b));
     }
 
-    // Animate the swap, then either commit it (match) or slide it back (no match).
+    // Animate the swap, then either commit it (match) or bounce it back (no match).
     // Nothing about the board's logical state changes until TrySwap; the slide only
     // moves transforms, so a bounce-back is a pure visual with no state to undo.
     IEnumerator SwapRoutine(Cell a, Cell b)
@@ -187,12 +204,11 @@ public class InputHandler : MonoBehaviour
 
         bool willMatch = placement.WouldMatch(a, b);
 
-        yield return Slide(ia.transform, pa, pb, ib.transform, pb, pa);
-
         if (willMatch)
         {
-            // Commit: TrySwap swaps the cells (snapping the gems to the same spots
-            // they just slid to) and resolves the cascade from there.
+            // A real move: slide with a springy overshoot and commit.
+            yield return Slide(ia, pa, pb, ib, pb, pa, swapAnimTime, Ease.OutBack);
+
             if (placement.TrySwap(a, b))
                 OnMoveCompleted?.Invoke();
             else
@@ -200,33 +216,74 @@ public class InputHandler : MonoBehaviour
         }
         else
         {
-            yield return Slide(ia.transform, pb, pa, ib.transform, pa, pb);
+            // Refused: lean toward the neighbour, bounce home, shake it off.
+            Vector3 ta = Vector3.Lerp(pa, pb, deniedReach);
+            Vector3 tb = Vector3.Lerp(pb, pa, deniedReach);
+
+            yield return Slide(ia, pa, ta, ib, pb, tb, swapAnimTime * 0.55f, Ease.OutCubic);
+            GameEvents.RaiseSwapDenied((pa + pb) * 0.5f);
+            yield return Slide(ia, ta, pa, ib, tb, pb, swapAnimTime * 0.65f, Ease.OutCubic);
+            yield return HeadShake(ia, pa, (pb - pa).normalized);
             SnapHome(ia, pa, ib, pb);
         }
 
         _animating = false;
     }
 
-    IEnumerator Slide(Transform t1, Vector3 from1, Vector3 to1, Transform t2, Vector3 from2, Vector3 to2)
+    // Shared two-gem slide with a pluggable easing curve. The pair also puffs up
+    // slightly mid-slide so the move reads as an object in hand, not a translation.
+    // All scaling multiplies each gem's authored BaseScale — the prefab is not 1.
+    IEnumerator Slide(Item i1, Vector3 from1, Vector3 to1,
+                      Item i2, Vector3 from2, Vector3 to2,
+                      float duration, Func<float, float> ease)
     {
-        float dur = Mathf.Max(0.01f, swapAnimTime);
+        float dur = Mathf.Max(0.01f, duration);
         float e = 0f;
         while (e < dur)
         {
             e += Time.deltaTime;
             float k = Mathf.Clamp01(e / dur);
-            if (t1 != null) t1.position = Vector3.Lerp(from1, to1, k);
-            if (t2 != null) t2.position = Vector3.Lerp(from2, to2, k);
+            float p = ease(k);
+            float puff = 1f + 0.07f * Mathf.Sin(k * Mathf.PI);
+
+            if (i1 != null)
+            {
+                i1.transform.position = Vector3.LerpUnclamped(from1, to1, p);
+                i1.transform.localScale = i1.BaseScale * puff;
+            }
+            if (i2 != null)
+            {
+                i2.transform.position = Vector3.LerpUnclamped(from2, to2, p);
+                i2.transform.localScale = i2.BaseScale * puff;
+            }
             yield return null;
         }
-        if (t1 != null) t1.position = to1;
-        if (t2 != null) t2.position = to2;
+        if (i1 != null) { i1.transform.position = to1; i1.transform.localScale = i1.BaseScale; }
+        if (i2 != null) { i2.transform.position = to2; i2.transform.localScale = i2.BaseScale; }
+    }
+
+    // A quick decaying wiggle along the axis the player tried to move — the gem
+    // literally shakes its head "no".
+    IEnumerator HeadShake(Item gem, Vector3 home, Vector3 axis)
+    {
+        const float dur = 0.14f;
+        const float amp = 0.07f;
+        float t = 0f;
+        while (t < dur)
+        {
+            if (gem == null) yield break;
+            t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            gem.transform.position = home + axis * (Mathf.Sin(k * Mathf.PI * 4f) * amp * (1f - k));
+            yield return null;
+        }
+        if (gem != null) gem.transform.position = home;
     }
 
     static void SnapHome(Item ia, Vector3 pa, Item ib, Vector3 pb)
     {
-        if (ia != null) ia.transform.position = pa;
-        if (ib != null) ib.transform.position = pb;
+        if (ia != null) { ia.transform.position = pa; ia.transform.localScale = ia.BaseScale; }
+        if (ib != null) { ib.transform.position = pb; ib.transform.localScale = ib.BaseScale; }
     }
 
     // --- Selection ----------------------------------------------------------
@@ -237,16 +294,22 @@ public class InputHandler : MonoBehaviour
         _selected = cell;
         _selectedItem = cell.CurrentItem;
         if (_selectedItem != null)
-        {
-            _selectedBaseScale = _selectedItem.transform.localScale;
-            _selectedItem.transform.localScale = _selectedBaseScale * selectedScale;
-        }
+            GameEvents.RaiseGemSelected(_selectedItem.transform.position);
+    }
+
+    // The selected gem breathes rather than sitting at a fixed enlarged size —
+    // motion draws the eye far better than scale alone.
+    void AnimateSelection()
+    {
+        if (_selectedItem == null) return;
+        float s = selectedScale + selectedPulse * Mathf.Sin(Time.time * 9f);
+        _selectedItem.transform.localScale = _selectedItem.BaseScale * s;
     }
 
     void ClearSelection()
     {
         if (_selectedItem != null)
-            _selectedItem.transform.localScale = _selectedBaseScale;
+            _selectedItem.transform.localScale = _selectedItem.BaseScale;
         _selectedItem = null;
         _selected = null;
     }
@@ -276,14 +339,13 @@ public class InputHandler : MonoBehaviour
             if (na != _hintA || nb != _hintB)
             {
                 ClearHint();
-                _hintA = na; _hintB = nb;
-                _hintABase = na.transform.localScale;
-                _hintBBase = nb.transform.localScale;
+                _hintA = na;
+                _hintB = nb;
             }
 
             float p = 1f + 0.12f * Mathf.Sin(Time.time * 6f);
-            if (_hintA != null) _hintA.transform.localScale = _hintABase * p;
-            if (_hintB != null) _hintB.transform.localScale = _hintBBase * p;
+            if (_hintA != null) _hintA.transform.localScale = _hintA.BaseScale * p;
+            if (_hintB != null) _hintB.transform.localScale = _hintB.BaseScale * p;
         }
         else
         {
@@ -293,9 +355,10 @@ public class InputHandler : MonoBehaviour
 
     void ClearHint()
     {
-        if (_hintA != null) _hintA.transform.localScale = _hintABase;
-        if (_hintB != null) _hintB.transform.localScale = _hintBBase;
-        _hintA = null; _hintB = null;
+        if (_hintA != null) _hintA.transform.localScale = _hintA.BaseScale;
+        if (_hintB != null) _hintB.transform.localScale = _hintB.BaseScale;
+        _hintA = null;
+        _hintB = null;
     }
 
     void OnDisable()

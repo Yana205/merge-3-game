@@ -4,7 +4,7 @@
         <!-- USS is linked on the root so the layout carries its own styling. -->
         <Style src="GameHUD.uss" />
 
-        <!-- Crystal Cavern HUD window: panel_window 9-slice, 224px wide. -->
+        <!-- Crystal Cavern HUD window: panel_window 9-slice. -->
         <ui:VisualElement name="score-panel" class="panel">
 
             <ui:VisualElement class="heading-row">
@@ -17,7 +17,7 @@
             <ui:VisualElement class="stat-row">
                 <ui:Label text="SCORE" class="field-label" />
                 <!-- #score-label = the ID selector; UIController queries by name. -->
-                <ui:Label name="score-label" text="0" class="numeral numeral--gold" />
+                <ui:Label name="score-label" text="0" class="numeral numeral--gold score-numeral" />
             </ui:VisualElement>
 
             <ui:VisualElement class="stat-row">
@@ -25,27 +25,15 @@
                 <ui:Label name="high-score-label" text="0" class="numeral" />
             </ui:VisualElement>
 
-            <!-- Pickaxe: banked charges, and the button that arms one. -->
-            <ui:VisualElement class="stat-row">
-                <ui:Label text="PICKAXE" class="field-label" />
-                <ui:Label name="pickaxe-label" text="0" class="numeral numeral--gold" />
-            </ui:VisualElement>
-
-            <ui:Button name="pickaxe-button" text="SHATTER" class="restart-button pickaxe-button" />
-
-            <!-- Shown only while the board is jammed and a charge is in hand. -->
-            <ui:Label name="rescue-hint" text="STUCK! TAP A GEM TO SHATTER" class="rescue-hint" />
-
             <!-- Button = the type selector; clicked is wired in UIController. -->
             <ui:Button name="restart-button" text="RESTART" class="restart-button" />
             <ui:Button name="mute-button" text="SOUND: ON" class="restart-button mute-button" />
         </ui:VisualElement>
 
-        <!-- Names the one verb in the game, centred under the board where the queue
-             previews are. Retires itself the first time the player places a crystal,
+        <!-- Names the one verb in the game. Retires itself after the first score,
              so it teaches once and never nags. -->
         <ui:VisualElement name="place-hint-row" class="place-hint-row" picking-mode="Ignore">
-            <ui:Label name="place-hint" text="TAP AN EMPTY CELL TO PLACE THE NEXT CRYSTAL" class="place-hint" />
+            <ui:Label name="place-hint" text="SWAP TWO GEMS TO LINE UP 3" class="place-hint" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

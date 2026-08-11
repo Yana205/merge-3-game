@@ -122,70 +122,20 @@ Button:active {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }
 
-/* --- Pickaxe -----------------------------------------------------------
-   Three states the player must be able to tell apart at a glance: empty
-   (nothing to spend), ready (a charge banked), armed (the next tap shatters).
+/* --- Score punch --------------------------------------------------------
+   UI Toolkit has no keyframe animation, so the punch is a class UIController
+   toggles on for one beat: scale snaps up with the class, and this transition
+   eases it back down when the class is removed. */
 
-   Empty is genuinely DISABLED, not merely dimmed. It used to be dim but still
-   clickable, so a click on it ran TryArm(), got false back, and did nothing
-   visible — a control that accepts input and silently ignores it teaches the
-   player that it is broken.
-
-   Ready pulses. UI Toolkit has no keyframe animation, so UIController toggles
-   --pulse on a scheduler and the transition below does the easing. */
-
-.pickaxe-button {
-    transition-property: color, opacity, scale;
-    transition-duration: 0.35s, 0.35s, 0.35s;
-    transition-timing-function: ease-in-out;
+.score-numeral {
+    transition-property: scale, color;
+    transition-duration: 0.18s;
+    transition-timing-function: ease-out-cubic;
 }
 
-.pickaxe-button--empty {
-    opacity: 0.3;
-}
-
-/* SetEnabled(false) also suppresses :hover and :active, so a disabled button
-   cannot light up under the cursor and promise something it will not do. */
-.pickaxe-button:disabled {
-    opacity: 0.3;
-    color: rgb(120, 150, 148);
-}
-
-.pickaxe-button--ready {
-    color: rgb(245, 197, 66);
-}
-
-/* Toggled on and off by UIController's scheduler. Only ever applied in the
-   ready state — a control that pulses in every state attracts nothing. */
-.pickaxe-button--pulse {
+.score-numeral--punch {
+    scale: 1.25 1.25;
     color: rgb(255, 246, 219);
-    scale: 1.05 1.05;
-}
-
-/* Last, so it wins over --ready and --pulse at equal specificity. Armed borrows
-   the pressed frame so the button visibly stays down — the board is in a mode,
-   and a flat button would not say so. */
-.pickaxe-button--armed {
-    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
-    color: rgb(245, 197, 66);
-    scale: 1 1;
-}
-
-/* The jam prompt. Gold on the panel, hidden until the board actually jams with
-   a charge in hand — display:none rather than opacity so it takes no layout
-   space in the normal case and the panel does not reserve a gap for it. */
-.rescue-hint {
-    -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
-    font-size: 12px;
-    letter-spacing: 1px;
-    color: rgb(245, 197, 66);
-    white-space: normal;
-    margin-top: 8px;
-    display: none;
-}
-
-.rescue-hint--visible {
-    display: flex;
 }
 
 /* Absolutely positioned so it does not take part in .hud-root's top-left flow —

@@ -2,8 +2,9 @@ using UnityEngine;
 
 /// <summary>
 /// The one move in the game: swap two adjacent gems. If the swap makes a match it
-/// stands and the board resolves; if it makes nothing the gems snap back, so an
-/// illegal swap costs the player nothing.
+/// stands and the board resolves (animated — see MergeManager); if it makes
+/// nothing the input layer slides the gems back, so an illegal swap costs the
+/// player nothing.
 ///
 /// Kept as the single thing the input layer talks to (its name is historical — it
 /// used to place crystals). InputHandler asks "can these two swap?" and gets a yes
@@ -14,6 +15,9 @@ public class PlacementController : MonoBehaviour
     [Header("References (assign in Inspector)")]
     [SerializeField] private GridManager gridManager;
     [SerializeField] private MergeManager mergeManager;
+
+    /// <summary>True while the board is mid-resolve — input must wait.</summary>
+    public bool IsBusy => mergeManager != null && mergeManager.IsResolving;
 
     /// <summary>Two cells are swappable only if they are orthogonal neighbours.</summary>
     public bool AreAdjacent(Cell a, Cell b)
@@ -30,7 +34,7 @@ public class PlacementController : MonoBehaviour
     }
 
     /// <summary>The first swap on the board that would make a match — used by the
-    /// input layer's debug hint.</summary>
+    /// input layer's idle hint.</summary>
     public bool TryFindHintMove(out Cell a, out Cell b)
     {
         if (mergeManager != null) return mergeManager.TryFindHintMove(out a, out b);
@@ -40,12 +44,13 @@ public class PlacementController : MonoBehaviour
 
     /// <summary>
     /// Swap the gems in <paramref name="a"/> and <paramref name="b"/>. Returns true
-    /// and resolves the board when the swap creates a match; returns false and
-    /// reverts the swap when it does not.
+    /// and starts the animated resolve when the swap creates a match; returns false
+    /// and reverts the (logical) swap when it does not. The caller owns the slide
+    /// animation either way — this only ever touches board state.
     /// </summary>
     public bool TrySwap(Cell a, Cell b)
     {
-        if (mergeManager == null) return false;
+        if (mergeManager == null || mergeManager.IsResolving) return false;
         if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
         if (!AreAdjacent(a, b)) return false;
 
@@ -53,7 +58,7 @@ public class PlacementController : MonoBehaviour
 
         if (mergeManager.HasAnyMatch())
         {
-            mergeManager.ResolveBoard();
+            mergeManager.BeginResolve();
             return true;
         }
 

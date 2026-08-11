@@ -1,17 +1,18 @@
 using System.Collections;
 using UnityEngine;
+using TMPro;
 
 /// <summary>
-/// Central "juice" for merges — presentation polish that stays fully decoupled: it
-/// only listens to the Lesson 1 <see cref="GameEvents.TileMerged"/> bus, so no
-/// gameplay system references it. On every merge it fires three code-driven effects
-/// (no Editor-authored assets needed):
-///   • a short camera shake,
-///   • a scale "punch" on the newly merged crystal,
-///   • a tinted spark burst at the merge cell.
+/// Central visual "juice", fully decoupled: it only listens to the
+/// <see cref="GameEvents"/> bus, so no gameplay system references it.
 ///
-/// Drop this on any always-present GameObject (e.g. the GridManager or a "_Juice"
-/// object). Everything is tunable in the Inspector and individually toggleable.
+///   TileMerged (per gem)      → a spark burst in the gem's signature colour
+///   MatchResolved (per group) → camera shake scaled by combo &amp; size,
+///                               a floating "+points" score at the group's centre,
+///                               a COMBO / NICE! / GREAT! popup when it's earned
+///
+/// Everything is code-driven — generated sprites and runtime TextMeshPro — so no
+/// Editor-authored effect assets are needed. Lives on any always-present object.
 /// </summary>
 public class JuiceDirector : MonoBehaviour
 {
@@ -20,51 +21,92 @@ public class JuiceDirector : MonoBehaviour
 
     [Header("Camera shake")]
     [SerializeField] private bool cameraShake = true;
-    [SerializeField] private float shakeDuration = 0.12f;
-    [SerializeField] private float shakeMagnitude = 0.06f;
-
-    [Header("Merge punch")]
-    [SerializeField] private bool scalePunch = true;
-    [SerializeField] private float punchScale = 0.28f;   // extra scale at the peak
-    [SerializeField] private float punchDuration = 0.16f;
+    [SerializeField] private float shakeDuration = 0.14f;
+    [Tooltip("Shake magnitude for a plain 3-match; combos and bigger groups add to it.")]
+    [SerializeField] private float shakeMagnitude = 0.05f;
+    [SerializeField] private float shakeMax = 0.16f;
 
     [Header("Spark burst")]
     [SerializeField] private bool sparkBurst = true;
-    [SerializeField] private int sparkCount = 8;
-    [SerializeField] private float sparkSpeed = 3.2f;
-    [SerializeField] private float sparkLifetime = 0.4f;
-    [SerializeField] private float sparkSize = 0.14f;
+    [SerializeField] private int sparkCount = 10;
+    [SerializeField] private float sparkSpeed = 3.6f;
+    [SerializeField] private float sparkLifetime = 0.45f;
+    [SerializeField] private float sparkSize = 0.16f;
     [SerializeField] private int sparkSortingOrder = 100;
+
+    [Header("Floating score")]
+    [SerializeField] private bool floatingScore = true;
+    [SerializeField] private float scoreRise = 0.9f;
+    [SerializeField] private float scoreLifetime = 0.8f;
+    [SerializeField] private float scoreFontSize = 4.5f;
+
+    [Header("Combo popups")]
+    [SerializeField] private bool comboPopups = true;
+    [SerializeField] private float popupFontSize = 7f;
 
     private Camera _camera;
     private Coroutine _shakeRoutine;
     private Vector3 _cameraBasePos;
     private static Sprite _sparkSprite;
 
-    void OnEnable()  => GameEvents.TileMerged += HandleTileMerged;
-    void OnDisable() => GameEvents.TileMerged -= HandleTileMerged;
+    void OnEnable()
+    {
+        GameEvents.TileMerged += HandleTileMerged;
+        GameEvents.MatchResolved += HandleMatchResolved;
+    }
 
-    private void HandleTileMerged(Item item, Cell cell)
+    void OnDisable()
+    {
+        GameEvents.TileMerged -= HandleTileMerged;
+        GameEvents.MatchResolved -= HandleMatchResolved;
+    }
+
+    // --- Per-gem: the burst where it died ------------------------------------
+
+    private void HandleTileMerged(Item gem, Cell cell)
+    {
+        if (!enableJuice || !sparkBurst) return;
+
+        Vector3 pos = gem != null ? gem.transform.position
+                    : (cell != null ? cell.transform.position : transform.position);
+        Color tint = gem != null ? gem.SignatureColor : Color.white;
+
+        StartCoroutine(SparkBurst(pos, tint));
+    }
+
+    // --- Per-group: shake, score, applause -----------------------------------
+
+    private void HandleMatchResolved(int combo, int gemCount, int points, Vector3 centre)
     {
         if (!enableJuice) return;
 
-        Vector3 pos = item != null ? item.transform.position
-                    : (cell != null ? cell.transform.position : transform.position);
-        Color tint = (item != null && item.GemData != null) ? item.GemData.tintColor : Color.white;
-
         if (cameraShake)
-            DoCameraShake();
+        {
+            // A 3-match murmurs; a cascade or a big group actually kicks.
+            float mag = shakeMagnitude * (1f + 0.45f * (combo - 1) + 0.12f * (gemCount - 3));
+            DoCameraShake(Mathf.Min(mag, shakeMax));
+        }
 
-        if (scalePunch && item != null)
-            StartCoroutine(PunchScale(item.transform));
+        if (floatingScore && points > 0)
+            StartCoroutine(FloatingText("+" + points, centre, scoreFontSize,
+                                        new Color(1f, 0.92f, 0.55f), scoreRise, scoreLifetime));
 
-        if (sparkBurst)
-            StartCoroutine(SparkBurst(pos, tint));
+        if (comboPopups)
+        {
+            // One line of applause, never two: a cascade outranks a big group.
+            string line = combo >= 2 ? "COMBO x" + combo
+                        : gemCount >= 5 ? "GREAT!"
+                        : gemCount >= 4 ? "NICE!"
+                        : null;
+            if (line != null)
+                StartCoroutine(FloatingText(line, centre + Vector3.up * 0.55f, popupFontSize,
+                                            new Color(0.75f, 0.95f, 1f), scoreRise * 1.3f, scoreLifetime * 1.1f));
+        }
     }
 
     // --- Camera shake -------------------------------------------------------
 
-    private void DoCameraShake()
+    private void DoCameraShake(float magnitude)
     {
         if (_camera == null) _camera = Camera.main;
         if (_camera == null) return;
@@ -75,17 +117,17 @@ public class JuiceDirector : MonoBehaviour
             _camera.transform.localPosition = _cameraBasePos; // restore before re-shaking
         }
         _cameraBasePos = _camera.transform.localPosition;
-        _shakeRoutine = StartCoroutine(ShakeRoutine());
+        _shakeRoutine = StartCoroutine(ShakeRoutine(magnitude));
     }
 
-    private IEnumerator ShakeRoutine()
+    private IEnumerator ShakeRoutine(float magnitude)
     {
         float t = 0f;
         while (t < shakeDuration)
         {
             t += Time.unscaledDeltaTime;
             float damper = 1f - (t / shakeDuration);          // ease out
-            Vector2 off = Random.insideUnitCircle * shakeMagnitude * damper;
+            Vector2 off = Random.insideUnitCircle * magnitude * damper;
             _camera.transform.localPosition = _cameraBasePos + new Vector3(off.x, off.y, 0f);
             yield return null;
         }
@@ -93,29 +135,43 @@ public class JuiceDirector : MonoBehaviour
         _shakeRoutine = null;
     }
 
-    // --- Scale punch --------------------------------------------------------
+    // --- Floating text (runtime TMP, no prefab) ------------------------------
 
-    private IEnumerator PunchScale(Transform target)
+    private IEnumerator FloatingText(string text, Vector3 pos, float fontSize,
+                                     Color color, float rise, float lifetime)
     {
-        Vector3 baseScale = target.localScale;
-        Vector3 peakScale = baseScale * (1f + punchScale);
+        var go = new GameObject("FloatingText");
+        go.transform.position = pos;
+
+        var tmp = go.AddComponent<TextMeshPro>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.color = color;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.sortingOrder = sparkSortingOrder + 1;
+
+        // TextMeshPro (3D) meshes are huge by default; rectTransform sized small
+        // keeps the layout box out of the way — the text just centres on it.
+        tmp.rectTransform.sizeDelta = new Vector2(4f, 1f);
+
         float t = 0f;
-        while (t < punchDuration)
+        Vector3 from = pos;
+        while (t < lifetime)
         {
-            // Guard the pooled item: if it despawned mid-punch, restore and bail.
-            if (target == null || !target.gameObject.activeInHierarchy)
-            {
-                if (target != null) target.localScale = baseScale;
-                yield break;
-            }
+            if (tmp == null) yield break;
             t += Time.deltaTime;
-            float p = t / punchDuration;
-            // 0 -> peak at the halfway point -> back to base (a single sine arch).
-            float s = Mathf.Sin(p * Mathf.PI);
-            target.localScale = Vector3.LerpUnclamped(baseScale, peakScale, s);
+            float k = Mathf.Clamp01(t / lifetime);
+
+            go.transform.position = from + Vector3.up * (rise * Ease.OutCubic(k));
+            // Pop in fast, hold, fade out over the back half.
+            go.transform.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, Ease.OutBack(Mathf.Min(1f, k * 3f)));
+            Color c = color;
+            c.a = k < 0.6f ? 1f : 1f - (k - 0.6f) / 0.4f;
+            tmp.color = c;
+
             yield return null;
         }
-        if (target != null) target.localScale = baseScale;
+        Destroy(go);
     }
 
     // --- Spark burst (procedural, no ParticleSystem asset needed) -----------
@@ -151,6 +207,8 @@ public class JuiceDirector : MonoBehaviour
             for (int i = 0; i < count; i++)
             {
                 if (sparks[i] == null) continue;
+                velocities[i] *= 1f - 2.5f * Time.deltaTime;                 // drag
+                velocities[i] += Vector2.down * (4f * Time.deltaTime);       // a little gravity
                 sparks[i].position += (Vector3)(velocities[i] * Time.deltaTime);
                 sparks[i].localScale = Vector3.one * sparkSize * (1f - k);   // shrink
                 Color c = renderers[i].color;

@@ -560,7 +560,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &251388681
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -573,7 +573,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6d9427e2a551dd4bb7e0f1e024faf33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIController
-  pickaxe: {fileID: 1156920196}
+  countUpTime: 0.35
 --- !u!114 &251388682
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -670,7 +670,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuController
   _menuPanel: {fileID: 281558920}
-  _gameplayHud: {fileID: 251388680}
+  _gameplayHud: {fileID: 0}
   _uiManager: {fileID: 225028455}
   _levelManager: {fileID: 1979452697}
   _fader: {fileID: 770344499}
@@ -2451,10 +2451,7 @@ GameObject:
   - component: {fileID: 1156920194}
   - component: {fileID: 1156920193}
   - component: {fileID: 1156920195}
-  - component: {fileID: 1156920196}
   - component: {fileID: 1156920197}
-  - component: {fileID: 1156920198}
-  - component: {fileID: 1156920199}
   - component: {fileID: 1156920200}
   m_Layer: 0
   m_Name: GridManager
@@ -2511,30 +2508,19 @@ MonoBehaviour:
   cameraShake: 1
   shakeDuration: 0.12
   shakeMagnitude: 0.06
-  scalePunch: 1
-  punchScale: 0.28
-  punchDuration: 0.16
+  shakeMax: 0.16
   sparkBurst: 1
   sparkCount: 8
   sparkSpeed: 3.2
   sparkLifetime: 0.4
   sparkSize: 0.14
   sparkSortingOrder: 100
---- !u!114 &1156920196
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1156920192}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 55226a6ef4dfe47c79f0873e09b62d67, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PickaxeController
-  scorePerCharge: 150
-  maxCharges: 3
-  gridManager: {fileID: 1156920193}
+  floatingScore: 1
+  scoreRise: 0.9
+  scoreLifetime: 0.8
+  scoreFontSize: 4.5
+  comboPopups: 1
+  popupFontSize: 7
 --- !u!114 &1156920197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2549,44 +2535,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AudioDirector
   musicLoop: {fileID: 8300000, guid: a0aa3d84115ad42d2ad388a31935d16f, type: 3}
   musicVolume: 0.35
-  mergeClip: {fileID: 8300000, guid: 124cfdf6bab3a433db472d0581594f89, type: 3}
-  shatterClip: {fileID: 8300000, guid: 1bfe4a899624e433f91d240b3c155bea, type: 3}
-  pickaxeArmClip: {fileID: 8300000, guid: 116df7896f89a4445a374574a01cb7fa, type: 3}
+  matchClip: {fileID: 8300000, guid: 124cfdf6bab3a433db472d0581594f89, type: 3}
+  crashClip: {fileID: 8300000, guid: 1bfe4a899624e433f91d240b3c155bea, type: 3}
+  selectClip: {fileID: 8300000, guid: 116df7896f89a4445a374574a01cb7fa, type: 3}
   sfxVolume: 0.7
   basePitch: 0.85
-  pitchPerTier: 1.09
---- !u!114 &1156920198
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1156920192}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ce92ccac16a0436d8857cffecc61cd9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BombController
-  gridManager: {fileID: 1156920193}
-  blastRadius: 1
-  armTier: 3
-  pulseSpeed: 2.6
---- !u!114 &1156920199
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1156920192}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6166d7f17c38545bdb50d2fe8dc272eb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CrystalQueue
-  gridManager: {fileID: 1156920193}
-  visibleCount: 3
-  dropBelowBoard: 1.4
-  previewSpacing: 1.1
+  pitchPerCombo: 1.12
 --- !u!114 &1156920200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2601,7 +2555,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlacementController
   gridManager: {fileID: 1156920193}
   mergeManager: {fileID: 1736714828}
-  queue: {fileID: 1156920199}
 --- !u!1 &1525116153
 GameObject:
   m_ObjectHideFlags: 0
@@ -3132,7 +3085,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MergeManager
   gridManager: {fileID: 1156920193}
-  groupSize: 3
+  colorCount: 5
+  minMatch: 3
+  popTime: 0.24
+  popSwell: 1.32
+  fallGravity: 42
+  fallMaxSpeed: 18
+  landSquash: 0.14
+  landSquashTime: 0.11
+  cascadeBeat: 0.05
 --- !u!4 &1736714829
 Transform:
   m_ObjectHideFlags: 0
@@ -3650,9 +3611,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputHandler
   gridManager: {fileID: 1156920193}
-  placement: {fileID: 1156920200}
-  pickaxe: {fileID: 1156920196}
-  bombs: {fileID: 1156920198}
+  placement: {fileID: 0}
+  selectedScale: 1.18
+  selectedPulse: 0.05
+  swapAnimTime: 0.12
+  deniedReach: 0.35
+  swipeFraction: 0.35
+  idleHintDelay: 4
 --- !u!4 &1877011473
 Transform:
   m_ObjectHideFlags: 0
@@ -3750,22 +3715,12 @@ MonoBehaviour:
   inputHandler: {fileID: 1877011472}
   mergeManager: {fileID: 1736714828}
   progressManager: {fileID: 1653937895}
-  pickaxeController: {fileID: 1156920196}
-  bombs: {fileID: 1156920198}
-  crystalQueue: {fileID: 1156920199}
   screenFader: {fileID: 770344499}
   background: {fileID: 956265832}
   serviceLoader: {fileID: 1971728762}
   autoStartOnLoad: 0
   endlessRows: 6
   endlessCols: 6
-  startingCrystals: 8
-  difficulty:
-    _redUnlockScore: 250
-    _redRampScore: 3000
-    _maxRedChance: 0.22
-    _maxTier2Chance: 0.12
-    _tier2RampScore: 2000
 --- !u!4 &1979452698
 Transform:
   m_ObjectHideFlags: 0
