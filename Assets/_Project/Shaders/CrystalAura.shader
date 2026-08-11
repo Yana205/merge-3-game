@@ -1,4 +1,4 @@
-// CrystalAura — a ShaderToy GLSL plasma ported to URP HLSL.
+// CrystalAura — a ShaderToy GLSL plasma ported to a Built-in RP CG shader.
 //
 // Source shape (classic ShaderToy "plasma", public-domain pattern):
 //   void mainImage(out vec4 O, vec2 U){
@@ -13,6 +13,12 @@
 // Port notes: iResolution/iTime -> UV already 0..1 + _Time.y; fragCoord math
 // dropped; two Inspector tints replace the fixed cos() palette; _Intensity is
 // exposed so a C# MonoBehaviour can push it at runtime (see CrystalAuraController).
+//
+// BUILT-IN RP NOTE: this project uses the Built-in Render Pipeline (no URP
+// package installed). An earlier URP version of this shader failed to compile
+// ("Couldn't open include file .../universal/ShaderLibrary/Core.hlsl") and was
+// stripped entirely from WebGL builds ("All subshaders removed"), so the aura
+// vanished in browser builds. Keep this shader on UnityCG.cginc.
 Shader "Merge3/CrystalAura"
 {
     Properties
@@ -29,9 +35,10 @@ Shader "Merge3/CrystalAura"
     {
         Tags
         {
-            "RenderType"     = "Transparent"
-            "Queue"          = "Transparent"
-            "RenderPipeline" = "UniversalPipeline"
+            "RenderType"      = "Transparent"
+            "Queue"           = "Transparent"
+            "IgnoreProjector" = "True"
+            "PreviewType"     = "Plane"
         }
 
         Blend SrcAlpha OneMinusSrcAlpha
@@ -41,34 +48,32 @@ Shader "Merge3/CrystalAura"
         Pass
         {
             Name "AuraForward"
-            HLSLPROGRAM
+            CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "UnityCG.cginc"
 
-            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
-            struct Varyings   { float4 positionHCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
+            struct v2f     { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
 
-            CBUFFER_START(UnityPerMaterial)
-                float4 _TintA;
-                float4 _TintB;
-                float  _Speed;
-                float  _Scale;
-                float  _Intensity;
-                float  _Alpha;
-            CBUFFER_END
+            float4 _TintA;
+            float4 _TintB;
+            float  _Speed;
+            float  _Scale;
+            float  _Intensity;
+            float  _Alpha;
 
-            Varyings vert(Attributes IN)
+            v2f vert(appdata v)
             {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = IN.uv;
-                return OUT;
+                v2f o;
+                o.pos = UnityObjectToClipPos(v.vertex);
+                o.uv = v.uv;
+                return o;
             }
 
-            half4 frag(Varyings IN) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
-                float2 uv = IN.uv;
+                float2 uv = i.uv;
                 float t = _Time.y * _Speed;
 
                 // Ported plasma sum.
@@ -83,11 +88,11 @@ Shader "Merge3/CrystalAura"
 
                 float3 col = lerp(_TintA.rgb, _TintB.rgb, w) * _Intensity;
                 float alpha = _Alpha * saturate(0.35 + 0.65 * w);
-                return half4(col, alpha);
+                return fixed4(col, alpha);
             }
-            ENDHLSL
+            ENDCG
         }
     }
 
-    Fallback "Universal Render Pipeline/Unlit"
+    Fallback "Sprites/Default"
 }
