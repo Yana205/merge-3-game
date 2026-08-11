@@ -52,6 +52,7 @@ public class PlacementController : MonoBehaviour
     {
         if (mergeManager == null || mergeManager.IsResolving) return false;
         if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
+        if (a.CurrentItem.IsStone || b.CurrentItem.IsStone) return false;
         if (!AreAdjacent(a, b)) return false;
 
         mergeManager.SwapItems(a, b);

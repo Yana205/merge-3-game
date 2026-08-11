@@ -38,6 +38,14 @@ public static class GameEvents
     /// Arg: the midpoint of the two gems, for a "denied" effect there.</summary>
     public static event Action<Vector3> SwapDenied;
 
+    /// <summary>Raised when an adjacent match cracks a stone that survives the
+    /// hit. Args: the stone and its Cell.</summary>
+    public static event Action<Item, Cell> StoneDamaged;
+
+    /// <summary>Raised when a stone shatters, BEFORE it despawns — listeners can
+    /// still read its data and position. Args: the stone and its Cell.</summary>
+    public static event Action<Item, Cell> StoneBroken;
+
     /// <summary>Raised when the player selects a gem (tap or press). Arg: the gem's
     /// world position. Exists so feedback (a click sound) stays out of input code.</summary>
     public static event Action<Vector3> GemSelected;
@@ -64,6 +72,10 @@ public static class GameEvents
 
     public static void RaiseSwapDenied(Vector3 centre) => SwapDenied?.Invoke(centre);
 
+    public static void RaiseStoneDamaged(Item stone, Cell cell) => StoneDamaged?.Invoke(stone, cell);
+
+    public static void RaiseStoneBroken(Item stone, Cell cell) => StoneBroken?.Invoke(stone, cell);
+
     public static void RaiseGemSelected(Vector3 position) => GemSelected?.Invoke(position);
 
     public static void RaiseSaveRequested() => SaveRequested?.Invoke();
@@ -85,6 +97,8 @@ public static class GameEvents
         TileMerged = null;
         MatchResolved = null;
         SwapDenied = null;
+        StoneDamaged = null;
+        StoneBroken = null;
         GemSelected = null;
         SaveRequested = null;
         RestartRequested = null;

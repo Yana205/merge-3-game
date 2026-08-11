@@ -53,12 +53,16 @@ public class JuiceDirector : MonoBehaviour
     {
         GameEvents.TileMerged += HandleTileMerged;
         GameEvents.MatchResolved += HandleMatchResolved;
+        GameEvents.StoneDamaged += HandleStoneDamaged;
+        GameEvents.StoneBroken += HandleStoneBroken;
     }
 
     void OnDisable()
     {
         GameEvents.TileMerged -= HandleTileMerged;
         GameEvents.MatchResolved -= HandleMatchResolved;
+        GameEvents.StoneDamaged -= HandleStoneDamaged;
+        GameEvents.StoneBroken -= HandleStoneBroken;
     }
 
     // --- Per-gem: the burst where it died ------------------------------------
@@ -102,6 +106,35 @@ public class JuiceDirector : MonoBehaviour
                 StartCoroutine(FloatingText(line, centre + Vector3.up * 0.55f, popupFontSize,
                                             new Color(0.75f, 0.95f, 1f), scoreRise * 1.3f, scoreLifetime * 1.1f));
         }
+    }
+
+    // --- Stones --------------------------------------------------------------
+
+    // A crack is a hit that held: a few dark chips fly, no shake — the stone is
+    // still in the way, and the feedback should say "again".
+    private void HandleStoneDamaged(Item stone, Cell cell)
+    {
+        if (!enableJuice || !sparkBurst || stone == null) return;
+        StartCoroutine(SparkBurst(stone.transform.position, new Color(0.55f, 0.25f, 0.22f)));
+    }
+
+    // The shatter is a payoff moment: red burst, a real kick of shake, and the
+    // points fly up from the wreck.
+    private void HandleStoneBroken(Item stone, Cell cell)
+    {
+        if (!enableJuice || stone == null) return;
+
+        Vector3 pos = stone.transform.position;
+        if (sparkBurst)
+        {
+            StartCoroutine(SparkBurst(pos, stone.SignatureColor));
+            StartCoroutine(SparkBurst(pos, new Color(1f, 0.85f, 0.6f)));   // double burst = bigger break
+        }
+        if (cameraShake)
+            DoCameraShake(Mathf.Min(shakeMagnitude * 1.8f, shakeMax));
+        if (floatingScore && stone.GemData != null)
+            StartCoroutine(FloatingText("+" + stone.GemData.scoreValue, pos, scoreFontSize,
+                                        new Color(1f, 0.62f, 0.5f), scoreRise, scoreLifetime));
     }
 
     // --- Camera shake -------------------------------------------------------

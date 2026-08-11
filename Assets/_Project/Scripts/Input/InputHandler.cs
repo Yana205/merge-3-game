@@ -291,8 +291,19 @@ public class InputHandler : MonoBehaviour
     void Select(Cell cell)
     {
         ClearSelection();
+
+        // A stone refuses the hand: it shakes its head where it sits and plays
+        // the denied thud. Match next to it to break it — that's the mechanic.
+        Item item = cell.CurrentItem;
+        if (item != null && item.IsStone)
+        {
+            GameEvents.RaiseSwapDenied(item.transform.position);
+            StartCoroutine(HeadShake(item, item.transform.position, Vector3.right));
+            return;
+        }
+
         _selected = cell;
-        _selectedItem = cell.CurrentItem;
+        _selectedItem = item;
         if (_selectedItem != null)
             GameEvents.RaiseGemSelected(_selectedItem.transform.position);
     }

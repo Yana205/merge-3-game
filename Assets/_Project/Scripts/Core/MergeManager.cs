@@ -57,6 +57,17 @@ public class MergeManager : MonoBehaviour
     [Tooltip("Breath between cascade rounds, seconds — lets each combo read.")]
     [SerializeField] private float cascadeBeat = 0.05f;
 
+    [Header("Stones (eye crystals)")]
+    [Tooltip("Chance that one refill gem enters as a stone blocker instead.")]
+    [Range(0f, 0.3f)]
+    [SerializeField] private float stoneChance = 0.06f;
+
+    [Tooltip("Never more than this many stones squatting the board at once.")]
+    [SerializeField] private int maxStones = 4;
+
+    [Tooltip("Hits a fresh stone takes to shatter (2 = crack, then break).")]
+    [SerializeField] private int stoneHp = 2;
+
     /// <summary>How many gem colours are in play — read by the board setup.</summary>
     public int ColorCount => colorCount;
 
@@ -159,6 +170,7 @@ public class MergeManager : MonoBehaviour
             GameEvents.RaiseMatchResolved(combo, matches.Count, points, centre);
 
             yield return PopMatches(matches);
+            yield return DamageAdjacentStones(matches);
             yield return DropAndRefill();
 
             if (cascadeBeat > 0f)
@@ -207,6 +219,105 @@ public class MergeManager : MonoBehaviour
         }
     }
 
+    // ----- Stones ------------------------------------------------------------
+
+    /// <summary>How the input layer asks "is this a blocker?" without knowing the rules.</summary>
+    public static bool IsStoneCell(Cell cell)
+        => cell != null && cell.IsOccupied() && cell.CurrentItem.IsStone;
+
+    private int CountStones()
+    {
+        int n = 0;
+        for (int r = 0; r < Rows; r++)
+            for (int c = 0; c < Cols; c++)
+                if (IsStoneCell(gridManager.GetCell(r, c))) n++;
+        return n;
+    }
+
+    // Every stone orthogonally adjacent to this round's matches takes ONE hit —
+    // a stone bordering two cleared runs still cracks once per round, so breaking
+    // one is always a deliberate two-move job (or one move plus a lucky cascade).
+    private IEnumerator DamageAdjacentStones(HashSet<Cell> matches)
+    {
+        var hit = new HashSet<Cell>();
+        var steps = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        foreach (Cell cell in matches)
+            foreach ((int dr, int dc) in steps)
+            {
+                Cell n = gridManager.GetCell(cell.row + dr, cell.col + dc);
+                if (IsStoneCell(n)) hit.Add(n);
+            }
+
+        if (hit.Count == 0) yield break;
+
+        var breaking = new List<Cell>();
+        foreach (Cell cell in hit)
+        {
+            Item stone = cell.CurrentItem;
+            if (stone.DamageStone())
+            {
+                breaking.Add(cell);
+            }
+            else
+            {
+                // Survived: the eye just went dark. Announce, and flinch so the
+                // hit reads even if you missed the sprite swap.
+                GameEvents.RaiseStoneDamaged(stone, cell);
+                StartCoroutine(StoneFlinch(stone));
+            }
+        }
+
+        if (breaking.Count == 0) yield break;
+
+        // Shattering stones pop like gems — swell, burst, gone — and their cells
+        // empty BEFORE gravity runs, so the break visibly opens a hole.
+        var items = new List<Item>(breaking.Count);
+        foreach (Cell cell in breaking)
+            items.Add(cell.CurrentItem);
+
+        float t = 0f;
+        float dur = Mathf.Max(0.01f, popTime);
+        const float swellPortion = 0.4f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            float scale = k < swellPortion
+                ? Mathf.Lerp(1f, popSwell, Ease.OutCubic(k / swellPortion))
+                : Mathf.Lerp(popSwell, 0f, Ease.InQuad((k - swellPortion) / (1f - swellPortion)));
+            foreach (Item stone in items)
+                if (stone != null)
+                    stone.transform.localScale = stone.BaseScale * scale;
+            yield return null;
+        }
+
+        foreach (Cell cell in breaking)
+        {
+            if (!cell.IsOccupied()) continue;
+            Item doomed = cell.CurrentItem;
+            GameEvents.RaiseStoneBroken(doomed, cell);
+            cell.RemoveItem();
+            gridManager.DespawnItem(doomed);
+        }
+    }
+
+    // A quick hurt-wiggle for a stone that took a hit and held.
+    private IEnumerator StoneFlinch(Item stone)
+    {
+        const float dur = 0.18f;
+        float t = 0f;
+        Vector3 home = stone != null ? stone.transform.position : Vector3.zero;
+        while (t < dur)
+        {
+            if (stone == null) yield break;
+            t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            stone.transform.position = home + Vector3.right * (Mathf.Sin(k * Mathf.PI * 5f) * 0.06f * (1f - k));
+            yield return null;
+        }
+        if (stone != null) stone.transform.position = home;
+    }
+
     // One gem in flight: where it's going and how fast it's currently falling.
     private struct Faller
     {
@@ -253,7 +364,13 @@ public class MergeManager : MonoBehaviour
                 var start = new Vector3(target.x, topY + cellSize * (k + 1), target.z);
                 Item spawned = gridManager.SpawnItem(cell, RandomColor(), GemFamily.Standard, start);
                 if (spawned != null)
+                {
+                    // Sometimes a refill gem is a stone instead — the eye crystal
+                    // rides the same drop so it arrives like everything else.
+                    if (Random.value < stoneChance && CountStones() < maxStones)
+                        spawned.SetupStone(stoneHp);
                     fallers.Add(new Faller { item = spawned, targetY = target.y });
+                }
             }
         }
 
@@ -445,6 +562,8 @@ public class MergeManager : MonoBehaviour
     public bool WouldSwapMatch(Cell a, Cell b)
     {
         if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
+        // Stones don't swap — they are furniture until something breaks them.
+        if (a.CurrentItem.IsStone || b.CurrentItem.IsStone) return false;
         SwapItems(a, b);
         bool made = HasAnyMatch();
         SwapItems(a, b);
@@ -452,16 +571,40 @@ public class MergeManager : MonoBehaviour
     }
 
     // Reassign a random colour to every gem in place (no despawn/spawn). Item.Setup
-    // re-colours and re-skins the existing pooled instance.
+    // re-colours and re-skins the existing pooled instance. Stones keep their
+    // places — a reshuffle rearranges the gems around the furniture.
     private void ReshuffleColors()
     {
         for (int r = 0; r < Rows; r++)
             for (int c = 0; c < Cols; c++)
             {
                 Cell cell = gridManager.GetCell(r, c);
-                if (cell != null && cell.IsOccupied())
+                if (cell != null && cell.IsOccupied() && !cell.CurrentItem.IsStone)
                     cell.CurrentItem.Setup(RandomColor(), GemFamily.Standard);
             }
+    }
+
+    /// <summary>Turn <paramref name="count"/> random occupied cells into stones —
+    /// used once at board build so a fresh board opens with something to break.
+    /// Never places two stones orthogonally adjacent.</summary>
+    public void SeedStones(int count)
+    {
+        var steps = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        int guard = 0;
+        while (count > 0 && guard++ < 200)
+        {
+            Cell cell = gridManager.GetCell(Random.Range(0, Rows), Random.Range(0, Cols));
+            if (cell == null || !cell.IsOccupied() || cell.CurrentItem.IsStone) continue;
+
+            bool nextToStone = false;
+            foreach ((int dr, int dc) in steps)
+                if (IsStoneCell(gridManager.GetCell(cell.row + dr, cell.col + dc)))
+                    nextToStone = true;
+            if (nextToStone) continue;
+
+            cell.CurrentItem.SetupStone(stoneHp);
+            count--;
+        }
     }
 
     void OnDisable()

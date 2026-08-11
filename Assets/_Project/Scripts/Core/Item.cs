@@ -38,8 +38,20 @@ public class Item : MonoBehaviour
 
     public GemTierData GemData { get; private set; }
 
-    /// <summary>The vivid signature colour of this gem — for sparks and popups.</summary>
-    public Color SignatureColor => GemPalette.ColorFor(Tier);
+    /// <summary>The vivid signature colour of this gem — for sparks and popups.
+    /// Stones are red on purpose: their sprites are the red eye crystals.</summary>
+    public Color SignatureColor => IsStone ? new Color(1f, 0.42f, 0.30f) : GemPalette.ColorFor(Tier);
+
+    /// <summary>
+    /// True when this item is a STONE — an eye crystal squatting on a cell. A
+    /// stone never matches (its Tier is 0), can't be selected or swapped, and is
+    /// broken by clearing a match on an orthogonally adjacent cell: the first hit
+    /// cracks it (the eye goes dark), the second shatters it for points.
+    /// </summary>
+    public bool IsStone { get; private set; }
+
+    /// <summary>Hits left before the stone shatters (2 = intact, 1 = cracked).</summary>
+    public int StoneHp { get; private set; }
 
     // Direct (parent -> child) event: raised when this Item is about to return to
     // the pool, passing itself so its owner can react at the item's last position
@@ -97,6 +109,57 @@ public class Item : MonoBehaviour
         UpdateGlow();
     }
 
+    /// <summary>
+    /// Turn this item into a stone blocker. Wears the red eye-crystal ladder
+    /// (already wired in GemConfig.redTiers): awake eye while intact, dark
+    /// dormant eye once cracked. Tier stays 0 so no match can ever include it.
+    /// </summary>
+    public void SetupStone(int hp = 2)
+    {
+        Tier = 0;
+        Family = GemFamily.Red;
+        IsStone = true;
+        StoneHp = Mathf.Max(1, hp);
+
+        if (gemConfig != null)
+            _sharedConfig = gemConfig;
+
+        ApplyStoneLook();
+    }
+
+    /// <summary>
+    /// One hit from an adjacent match. Returns true when the stone shatters
+    /// (the caller despawns it); otherwise the eye goes dark and it holds on.
+    /// </summary>
+    public bool DamageStone()
+    {
+        if (!IsStone) return false;
+        StoneHp--;
+        if (StoneHp <= 0) return true;
+        ApplyStoneLook();
+        return false;
+    }
+
+    // Intact = the awake red eye (red tier 3); cracked = the dark dormant one
+    // (red tier 1). Both carry a scoreValue the break can award.
+    private void ApplyStoneLook()
+    {
+        GemData = gemConfig != null ? gemConfig.GetTier(StoneHp >= 2 ? 3 : 1, GemFamily.Red) : null;
+
+        if (GemData != null && GemData.sprite != null)
+        {
+            spriteRenderer.sprite = GemData.sprite;
+            spriteRenderer.color = Color.white;
+        }
+        else
+        {
+            spriteRenderer.sprite = GetWhiteSquare();
+            spriteRenderer.color = new Color(0.45f, 0.20f, 0.18f);
+        }
+
+        UpdateGlow();
+    }
+
     // The glow child is created lazily and reused for the item's whole pooled life.
     private void UpdateGlow()
     {
@@ -108,8 +171,10 @@ public class Item : MonoBehaviour
             _glow.sprite = GetGlowSprite();
         }
 
-        Color c = GemPalette.ColorFor(Tier);
-        c.a = glowAlpha;
+        // Stones smoulder rather than shine — dimmer, so a blocker never
+        // out-glows the gems the player can actually use.
+        Color c = SignatureColor;
+        c.a = IsStone ? glowAlpha * 0.45f : glowAlpha;
         _glow.color = c;
 
         // Cells draw at order 0. The gem must sit at 2+ so the glow can take the
@@ -139,6 +204,8 @@ public class Item : MonoBehaviour
         Tier = 0;
         Family = GemFamily.Standard;
         GemData = null;
+        IsStone = false;
+        StoneHp = 0;
 
         if (spriteRenderer != null)
         {

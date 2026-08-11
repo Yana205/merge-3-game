@@ -40,6 +40,10 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
 
+    [Tooltip("Eye-crystal stones seeded into a fresh board, so every run opens " +
+             "with something to break. Refills add more over time (MergeManager).")]
+    [SerializeField] private int startingStones = 2;
+
     // ----- Runtime state -----------------------------------------------------
 
     public int CurrentScore => scoreController != null ? scoreController.Score : _localScore;
@@ -216,6 +220,10 @@ public class LevelManager : MonoBehaviour
                 gridManager.SpawnItem(gridManager.GetCell(r, c), color, GemFamily.Standard);
             }
         }
+
+        // Stones before the playability pass, so EnsurePlayable already knows
+        // which cells are furniture when it verifies a legal move exists.
+        mergeManager?.SeedStones(startingStones);
 
         // A random fill can still deal a board with no possible swap; MergeManager
         // reshuffles until at least one move exists.

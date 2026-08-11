@@ -96,6 +96,8 @@ public class AudioDirector : MonoBehaviour
         GameEvents.MatchResolved += HandleMatchResolved;
         GameEvents.SwapDenied += HandleSwapDenied;
         GameEvents.GemSelected += HandleGemSelected;
+        GameEvents.StoneDamaged += HandleStoneDamaged;
+        GameEvents.StoneBroken += HandleStoneBroken;
     }
 
     void OnDisable()
@@ -103,6 +105,8 @@ public class AudioDirector : MonoBehaviour
         GameEvents.MatchResolved -= HandleMatchResolved;
         GameEvents.SwapDenied -= HandleSwapDenied;
         GameEvents.GemSelected -= HandleGemSelected;
+        GameEvents.StoneDamaged -= HandleStoneDamaged;
+        GameEvents.StoneBroken -= HandleStoneBroken;
     }
 
     // --- Bus handlers -------------------------------------------------------
@@ -140,6 +144,22 @@ public class AudioDirector : MonoBehaviour
         if (selectClip == null || _sfxSource == null) return;
         _sfxSource.pitch = Random.Range(1.02f, 1.10f);   // tiny variance stops the machine-gun effect
         _sfxSource.PlayOneShot(selectClip, sfxVolume * 0.35f);
+    }
+
+    // A dull knock: the stone took the hit and held.
+    private void HandleStoneDamaged(Item stone, Cell cell)
+    {
+        if (crashClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = 0.7f;
+        _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.4f);
+    }
+
+    // The full crash — a stone is out of the way.
+    private void HandleStoneBroken(Item stone, Cell cell)
+    {
+        if (crashClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = 1.05f;
+        _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.8f);
     }
 
     // --- Mute ---------------------------------------------------------------
