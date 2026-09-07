@@ -31,6 +31,13 @@ public class MenuController : MonoBehaviour
     [Tooltip("Optional label that shows the best run score on the menu.")]
     [SerializeField] private TMPro.TMP_Text _bestScoreText;
 
+    [Header("Audio")]
+    [Tooltip("Title-screen MUSIC toggle. Music starts muted, so the player opts in here.")]
+    [SerializeField] private Button _musicButton;
+
+    [Tooltip("The MUSIC entry's label; found on the button's children when unset.")]
+    [SerializeField] private TMPro.TMP_Text _musicLabel;
+
     [Header("Game Over Buttons")]
     [SerializeField] private Button _replayButton;
     [SerializeField] private Button _gameOverMenuButton;
@@ -53,11 +60,29 @@ public class MenuController : MonoBehaviour
             return;
         }
 
+        // The UI Toolkit HUD lives on its own GameObject. If the scene link is
+        // ever lost (it was, once, in a rewrite) the HUD would sit on top of the
+        // title screen, so fall back to finding it rather than trusting the link.
+        if (_gameplayHud == null)
+        {
+            var hud = FindAnyObjectByType<UIController>(FindObjectsInactive.Include);
+            if (hud != null) _gameplayHud = hud.gameObject;
+            else Debug.LogError("MenuController: gameplay HUD reference is missing and no UIController was found.");
+        }
+
         if (_playButton != null) _playButton.onClick.AddListener(StartRun);
         if (_quitButton != null) _quitButton.onClick.AddListener(QuitGame);
         if (_leaderboardButton != null) _leaderboardButton.onClick.AddListener(OpenLeaderboard);
         if (_replayButton != null) _replayButton.onClick.AddListener(StartRun);
         if (_gameOverMenuButton != null) _gameOverMenuButton.onClick.AddListener(ReturnToMenu);
+
+        if (_musicButton != null)
+        {
+            if (_musicLabel == null) _musicLabel = _musicButton.GetComponentInChildren<TMPro.TMP_Text>();
+            _musicButton.onClick.AddListener(AudioDirector.ToggleMusic);
+        }
+        AudioDirector.MuteChanged += RefreshMusicLabel;
+        RefreshMusicLabel();
 
         RefreshBestScore();
         _menuPanel.SetActive(!s_menuDismissed);
@@ -71,6 +96,15 @@ public class MenuController : MonoBehaviour
     void OnDestroy()
     {
         GameEvents.RestartRequested -= StartRun;
+        AudioDirector.MuteChanged -= RefreshMusicLabel;
+    }
+
+    // Mirrors the HUD's MUSIC button: both read the same static state, so a
+    // toggle on either screen shows up on the other.
+    void RefreshMusicLabel()
+    {
+        if (_musicLabel != null)
+            _musicLabel.text = AudioDirector.MusicMuted ? "MUSIC: OFF" : "MUSIC: ON";
     }
 
     // The HUD lives in two systems: uGUI score/target text behind UIManager, and

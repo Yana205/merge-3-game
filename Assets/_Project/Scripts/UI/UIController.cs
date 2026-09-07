@@ -23,7 +23,8 @@ public class UIController : MonoBehaviour
     private Label _scoreLabel;
     private Label _highScoreLabel;
     private Button _restartButton;
-    private Button _muteButton;
+    private Button _musicButton;
+    private Button _sfxButton;
     private Label _placeHint;
 
     // Count-up state: what the label shows vs what the score really is. The
@@ -52,7 +53,8 @@ public class UIController : MonoBehaviour
         _scoreLabel = root.Q<Label>("score-label");
         _highScoreLabel = root.Q<Label>("high-score-label");
         _restartButton = root.Q<Button>("restart-button");
-        _muteButton = root.Q<Button>("mute-button");
+        _musicButton = root.Q<Button>("music-button");
+        _sfxButton = root.Q<Button>("sfx-button");
         _placeHint = root.Q<Label>("place-hint");
 
         if (_scoreLabel == null || _highScoreLabel == null || _restartButton == null)
@@ -62,7 +64,7 @@ public class UIController : MonoBehaviour
         _targetScore = 0;
         if (_scoreLabel != null) _scoreLabel.text = "0";
         SetHighScore(0);   // best arrives over the bus from ProgressManager
-        SetMuteLabel(AudioDirector.Muted);
+        RefreshAudioLabels();
 
         // ~30fps ticker that walks the shown score toward the target. Started
         // paused; ScoreChanged resumes it when there is distance to cover.
@@ -74,17 +76,21 @@ public class UIController : MonoBehaviour
 
         if (_restartButton != null)
             _restartButton.clicked += OnRestartClicked;
-        if (_muteButton != null)
-            _muteButton.clicked += OnMuteClicked;
+        if (_musicButton != null)
+            _musicButton.clicked += AudioDirector.ToggleMusic;
+        if (_sfxButton != null)
+            _sfxButton.clicked += AudioDirector.ToggleSfx;
 
         GameEvents.ScoreChanged += OnScoreChanged;
         GameEvents.BestScoreChanged += SetHighScore;
+        AudioDirector.MuteChanged += RefreshAudioLabels;
     }
 
     void OnDisable()
     {
         GameEvents.ScoreChanged -= OnScoreChanged;
         GameEvents.BestScoreChanged -= SetHighScore;
+        AudioDirector.MuteChanged -= RefreshAudioLabels;
 
         _countTicker?.Pause();
         _countTicker = null;
@@ -93,8 +99,10 @@ public class UIController : MonoBehaviour
 
         if (_restartButton != null)
             _restartButton.clicked -= OnRestartClicked;
-        if (_muteButton != null)
-            _muteButton.clicked -= OnMuteClicked;
+        if (_musicButton != null)
+            _musicButton.clicked -= AudioDirector.ToggleMusic;
+        if (_sfxButton != null)
+            _sfxButton.clicked -= AudioDirector.ToggleSfx;
     }
 
     // --- Score --------------------------------------------------------------
@@ -157,16 +165,15 @@ public class UIController : MonoBehaviour
 
     // --- Sound --------------------------------------------------------------
 
-    private void OnMuteClicked()
+    // Both toggles read the shared static state, so the HUD and the title
+    // menu's MUSIC entry always agree — flipping one refreshes the other via
+    // AudioDirector.MuteChanged.
+    private void RefreshAudioLabels()
     {
-        AudioDirector.SetMuted(!AudioDirector.Muted);
-        SetMuteLabel(AudioDirector.Muted);
-    }
-
-    private void SetMuteLabel(bool muted)
-    {
-        if (_muteButton != null)
-            _muteButton.text = muted ? "SOUND: OFF" : "SOUND: ON";
+        if (_musicButton != null)
+            _musicButton.text = AudioDirector.MusicMuted ? "MUSIC: OFF" : "MUSIC: ON";
+        if (_sfxButton != null)
+            _sfxButton.text = AudioDirector.SfxMuted ? "SFX: OFF" : "SFX: ON";
     }
 
     // Button click -> ask for a fresh run over the bus. Still self-contained: the

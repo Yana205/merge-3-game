@@ -27,7 +27,10 @@
 
             <!-- Button = the type selector; clicked is wired in UIController. -->
             <ui:Button name="restart-button" text="RESTART" class="restart-button" />
-            <ui:Button name="mute-button" text="SOUND: ON" class="restart-button mute-button" />
+            <!-- Audio toggles. Music is OFF by default (see AudioDirector); the
+                 labels are refreshed from the shared mute state at runtime. -->
+            <ui:Button name="music-button" text="MUSIC: OFF" class="restart-button mute-button" />
+            <ui:Button name="sfx-button" text="SFX: ON" class="restart-button mute-button" />
         </ui:VisualElement>
 
         <!-- Names the one verb in the game. Retires itself after the first score,

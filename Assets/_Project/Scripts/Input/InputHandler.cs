@@ -90,9 +90,9 @@ public class InputHandler : MonoBehaviour
         // go stale across a rewrite, so fall back to finding them rather than
         // depending on inspector wiring alone.
         if (placement == null)
-            placement = FindFirstObjectByType<PlacementController>();
+            placement = FindAnyObjectByType<PlacementController>();
         if (gridManager == null)
-            gridManager = FindFirstObjectByType<GridManager>();
+            gridManager = FindAnyObjectByType<GridManager>();
 
         if (placement == null)
             Debug.LogError("InputHandler: no PlacementController in the scene — swaps cannot work.");
