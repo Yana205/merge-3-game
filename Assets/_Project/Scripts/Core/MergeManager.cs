@@ -15,7 +15,12 @@ using UnityEngine;
 ///
 /// A "colour" is an Item's <see cref="Item.Tier"/>, indices 1..colorCount mapped
 /// to distinct looks by <see cref="GemPalette"/>. Gems never change colour in
-/// play; they are only cleared and replaced.
+/// play; they are only cleared and replaced. How many colours are in play is
+/// pushed in by <see cref="StageDirector"/> as the run progresses.
+///
+/// Specials: a run of four leaves a Cross gem behind, a run of five a Prism.
+/// A special caught in a match (or in another special's blast) goes off and
+/// widens the pop set; a Prism swapped with any gem clears that gem's colour.
 ///
 /// While <see cref="IsResolving"/> is true the input layer refuses new swaps, so
 /// the pipeline never interleaves with the player.
@@ -26,15 +31,22 @@ public class MergeManager : MonoBehaviour
     public GridManager gridManager;
 
     [Header("Match Rules")]
-    [Tooltip("How many distinct gem colours are in play (GemPalette defines 6). " +
-             "Fewer colours = more matches and longer cascades; 5 keeps a 6x6 " +
-             "board generous without playing itself.")]
+    [Tooltip("How many distinct gem colours are in play right now (GemPalette " +
+             "defines 6). StageDirector raises this as the run progresses: fewer " +
+             "colours = more matches and longer cascades.")]
     [Range(3, 6)]
-    [SerializeField] private int colorCount = 5;
+    [SerializeField] private int colorCount = 4;
 
     [Tooltip("Gems in a straight line needed to clear. Three is the classic rule.")]
     [Min(3)]
     [SerializeField] private int minMatch = 3;
+
+    [Header("Specials")]
+    [Tooltip("Bonus points when a Cross gem goes off.")]
+    [SerializeField] private int crossBonus = 60;
+
+    [Tooltip("Bonus points when a Prism goes off.")]
+    [SerializeField] private int prismBonus = 200;
 
     [Header("Feel — pop")]
     [Tooltip("Seconds a matched gem takes to swell and burst.")]
@@ -58,12 +70,13 @@ public class MergeManager : MonoBehaviour
     [SerializeField] private float cascadeBeat = 0.05f;
 
     [Header("Stones (eye crystals)")]
-    [Tooltip("Chance that one refill gem enters as a stone blocker instead.")]
+    [Tooltip("Chance that one refill gem enters as a stone blocker instead. " +
+             "StageDirector raises this as the run progresses.")]
     [Range(0f, 0.3f)]
-    [SerializeField] private float stoneChance = 0.06f;
+    [SerializeField] private float stoneChance = 0.05f;
 
     [Tooltip("Never more than this many stones squatting the board at once.")]
-    [SerializeField] private int maxStones = 4;
+    [SerializeField] private int maxStones = 3;
 
     [Tooltip("Hits a fresh stone takes to shatter (2 = crack, then break).")]
     [SerializeField] private int stoneHp = 2;
@@ -80,12 +93,56 @@ public class MergeManager : MonoBehaviour
 
     private int RandomColor() => Random.Range(1, colorCount + 1);
 
+    // The two cells of the player's last swap, so a match of four/five leaves its
+    // special exactly where the player put the gem — the move reads as "I made it".
+    private Cell _swapA, _swapB;
+
+    // A Prism swap does not need a line: the resolve's first round clears every
+    // gem of this colour (0 = every colour, for Prism + Prism) from this cell.
+    private Cell _pendingPrism;
+    private int _pendingPrismColor;
+    private bool _prismPending;
+
+    // One straight line of minMatch+ identical gems.
+    private struct Run
+    {
+        public List<Cell> cells;
+        public int color;
+    }
+
+    // What a special did when it went off, kept until the pop so juice can draw
+    // the beams before the victims vanish.
+    private struct Blast
+    {
+        public SpecialKind kind;
+        public Vector3 origin;
+        public Color colour;
+        public List<Cell> cells;
+    }
+
     // The colour sitting in a cell, or 0 for an empty/out-of-range one. Colours are
     // >= 1, so 0 is an unambiguous "nothing here".
     private int ColorAt(int row, int col)
     {
         Cell cell = gridManager != null ? gridManager.GetCell(row, col) : null;
         return (cell != null && cell.IsOccupied()) ? cell.CurrentItem.Tier : 0;
+    }
+
+    // ----- Progression hooks -------------------------------------------------
+
+    /// <summary>Set how many palette colours refills draw from. Existing gems keep
+    /// their colours — the new one simply starts arriving.</summary>
+    public void SetActiveColors(int count)
+    {
+        colorCount = Mathf.Clamp(count, 3, GemPalette.Count);
+    }
+
+    /// <summary>Tune how often stones arrive and how tough they are.</summary>
+    public void SetStonePressure(float chance, int maxOnBoard, int hp)
+    {
+        stoneChance = Mathf.Clamp(chance, 0f, 0.3f);
+        maxStones = Mathf.Max(0, maxOnBoard);
+        stoneHp = Mathf.Max(1, hp);
     }
 
     // ----- Public board operations ------------------------------------------
@@ -104,6 +161,14 @@ public class MergeManager : MonoBehaviour
         if (ia != null) b.PlaceItem(ia, snap: false);
     }
 
+    /// <summary>Remember the player's committed swap so the next resolve can place
+    /// any special it earns on the gem the player actually moved.</summary>
+    public void NoteSwap(Cell a, Cell b)
+    {
+        _swapA = a;
+        _swapB = b;
+    }
+
     /// <summary>True when the board currently holds at least one line of
     /// <see cref="minMatch"/>+ identical gems.</summary>
     public bool HasAnyMatch() => FindMatches().Count > 0;
@@ -116,12 +181,24 @@ public class MergeManager : MonoBehaviour
             StartCoroutine(ResolveRoutine());
     }
 
+    /// <summary>A Prism was swapped: fire it from <paramref name="prismCell"/> at
+    /// every gem of <paramref name="colour"/> (0 = all colours), then resolve.</summary>
+    public void BeginPrismResolve(Cell prismCell, int colour)
+    {
+        _pendingPrism = prismCell;
+        _pendingPrismColor = colour;
+        _prismPending = prismCell != null;
+        BeginResolve();
+    }
+
     /// <summary>Abort a resolve mid-flight — called when the board is about to be
     /// torn down (restart) so a cascade never animates gems that no longer exist.</summary>
     public void CancelResolve()
     {
         StopAllCoroutines();
         IsResolving = false;
+        _prismPending = false;
+        _swapA = _swapB = null;
     }
 
     /// <summary>
@@ -150,27 +227,101 @@ public class MergeManager : MonoBehaviour
 
         while (true)
         {
-            HashSet<Cell> matches = FindMatches();
-            if (matches.Count == 0) break;
+            List<Run> runs = FindRuns();
+            var pop = new HashSet<Cell>();
+            var stoneHits = new HashSet<Cell>();
+            var blasts = new List<Blast>();
+            var creations = new List<(Cell cell, SpecialKind kind)>();
+            int bonus = 0;
+
+            // A swapped Prism opens the round with no line at all.
+            if (_prismPending)
+            {
+                _prismPending = false;
+                Cell prismCell = _pendingPrism;
+                if (prismCell != null && prismCell.IsOccupied())
+                {
+                    pop.Add(prismCell);
+                    bonus += Fire(prismCell, _pendingPrismColor, pop, stoneHits, blasts);
+                }
+            }
+
+            foreach (Run run in runs)
+            {
+                pop.UnionWith(run.cells);
+
+                // Four leaves a Cross, five or more a Prism — on the gem the
+                // player moved when it is part of the run, else the run's middle.
+                if (run.cells.Count >= 5)
+                    creations.Add((OriginOf(run), SpecialKind.Prism));
+                else if (run.cells.Count == 4)
+                    creations.Add((OriginOf(run), SpecialKind.Cross));
+            }
+
+            if (pop.Count == 0) break;
             combo++;
 
+            // Any special caught in the pop goes off, and anything IT catches too.
+            var queue = new Queue<Cell>();
+            foreach (Cell cell in pop)
+                if (cell.IsOccupied() && cell.CurrentItem.IsSpecial) queue.Enqueue(cell);
+            var firedCells = new HashSet<Cell>();
+            while (queue.Count > 0)
+            {
+                Cell cell = queue.Dequeue();
+                if (!firedCells.Add(cell)) continue;
+                Item gem = cell.CurrentItem;
+                if (gem == null) continue;
+                int before = pop.Count;
+                bonus += Fire(cell, gem.Tier, pop, stoneHits, blasts);
+                // Newly added cells may hold specials of their own — chain them.
+                foreach (Cell added in pop)
+                    if (added.IsOccupied() && added.CurrentItem.IsSpecial && !firedCells.Contains(added))
+                        queue.Enqueue(added);
+            }
+
+            // The gem that becomes a special survives the pop — it IS the reward.
+            var survivors = new List<(Cell, SpecialKind)>();
+            foreach ((Cell cell, SpecialKind kind) in creations)
+            {
+                if (cell == null || !cell.IsOccupied() || firedCells.Contains(cell)) continue;
+                pop.Remove(cell);
+                survivors.Add((cell, kind));
+            }
+
             // Read the group's worth and centre BEFORE anything despawns.
-            int points = 0;
+            int points = bonus;
             Vector3 centre = Vector3.zero;
-            foreach (Cell cell in matches)
+            var colourVotes = new Dictionary<int, int>();
+            foreach (Cell cell in pop)
             {
                 Item gem = cell.CurrentItem;
                 points += (gem != null && gem.GemData != null) ? gem.GemData.scoreValue : 10;
                 centre += cell.transform.position;
+                if (gem != null)
+                    colourVotes[gem.Tier] = colourVotes.TryGetValue(gem.Tier, out int n) ? n + 1 : 1;
             }
-            centre /= matches.Count;
+            centre /= Mathf.Max(1, pop.Count);
+            Color groupColour = DominantColour(colourVotes);
 
             // One announcement per group: audio pops once (pitch climbs with
             // combo), the HUD flashes, the score text flies from the centre.
-            GameEvents.RaiseMatchResolved(combo, matches.Count, points, centre);
+            GameEvents.RaiseMatchResolved(combo, pop.Count, points, centre, groupColour);
+            if (bonus > 0)
+                GameEvents.RaiseBonusScore(bonus, centre);
+            foreach (Blast blast in blasts)
+                GameEvents.RaiseSpecialFired(blast.kind, blast.origin, blast.colour, blast.cells);
+            foreach ((Cell cell, SpecialKind kind) in survivors)
+            {
+                cell.CurrentItem.SetSpecial(kind);
+                GameEvents.RaiseSpecialCreated(cell.CurrentItem, cell);
+            }
 
-            yield return PopMatches(matches);
-            yield return DamageAdjacentStones(matches);
+            // Only the first round belongs to the player's swap.
+            _swapA = _swapB = null;
+
+            yield return PopMatches(pop);
+            yield return DamageStones(pop, stoneHits);
             yield return DropAndRefill();
 
             if (cascadeBeat > 0f)
@@ -179,6 +330,75 @@ public class MergeManager : MonoBehaviour
 
         EnsurePlayable();
         IsResolving = false;
+    }
+
+    // Set a special off: widen the pop set with everything its blast covers.
+    // Stones in the path are hit rather than popped. Returns the bonus earned.
+    private int Fire(Cell cell, int colour, HashSet<Cell> pop, HashSet<Cell> stoneHits, List<Blast> blasts)
+    {
+        Item gem = cell.CurrentItem;
+        if (gem == null || !gem.IsSpecial) return 0;
+
+        var covered = new List<Cell>();
+        if (gem.Special == SpecialKind.Cross)
+        {
+            for (int c = 0; c < Cols; c++) Cover(gridManager.GetCell(cell.row, c), pop, stoneHits, covered);
+            for (int r = 0; r < Rows; r++) Cover(gridManager.GetCell(r, cell.col), pop, stoneHits, covered);
+        }
+        else
+        {
+            for (int r = 0; r < Rows; r++)
+                for (int c = 0; c < Cols; c++)
+                {
+                    Cell target = gridManager.GetCell(r, c);
+                    if (target == null || !target.IsOccupied()) continue;
+                    Item t = target.CurrentItem;
+                    if (t.IsStone) continue;
+                    if (colour == 0 || t.Tier == colour || target == cell)
+                        Cover(target, pop, stoneHits, covered);
+                }
+        }
+
+        blasts.Add(new Blast
+        {
+            kind = gem.Special,
+            origin = cell.transform.position,
+            colour = colour == 0 ? Color.white : GemPalette.ColorFor(colour),
+            cells = covered,
+        });
+        return gem.Special == SpecialKind.Prism ? prismBonus : crossBonus;
+    }
+
+    private static void Cover(Cell target, HashSet<Cell> pop, HashSet<Cell> stoneHits, List<Cell> covered)
+    {
+        if (target == null || !target.IsOccupied()) return;
+        covered.Add(target);
+        if (target.CurrentItem.IsStone) stoneHits.Add(target);
+        else pop.Add(target);
+    }
+
+    // Where a run's special appears: the gem the player just moved if it is in the
+    // run, otherwise the run's middle. Never on a gem that is already special.
+    private Cell OriginOf(Run run)
+    {
+        if (_swapA != null && run.cells.Contains(_swapA) && !IsSpecialCell(_swapA)) return _swapA;
+        if (_swapB != null && run.cells.Contains(_swapB) && !IsSpecialCell(_swapB)) return _swapB;
+        Cell middle = run.cells[run.cells.Count / 2];
+        if (!IsSpecialCell(middle)) return middle;
+        foreach (Cell cell in run.cells)
+            if (!IsSpecialCell(cell)) return cell;
+        return null;
+    }
+
+    private static bool IsSpecialCell(Cell cell)
+        => cell != null && cell.IsOccupied() && cell.CurrentItem.IsSpecial;
+
+    private static Color DominantColour(Dictionary<int, int> votes)
+    {
+        int best = 0, bestCount = -1;
+        foreach (KeyValuePair<int, int> kv in votes)
+            if (kv.Key > 0 && kv.Value > bestCount) { best = kv.Key; bestCount = kv.Value; }
+        return best > 0 ? GemPalette.ColorFor(best) : new Color(1f, 0.92f, 0.55f);
     }
 
     // Swell every matched gem, then collapse it to nothing, then despawn — the
@@ -237,9 +457,10 @@ public class MergeManager : MonoBehaviour
     // Every stone orthogonally adjacent to this round's matches takes ONE hit —
     // a stone bordering two cleared runs still cracks once per round, so breaking
     // one is always a deliberate two-move job (or one move plus a lucky cascade).
-    private IEnumerator DamageAdjacentStones(HashSet<Cell> matches)
+    // Stones caught in a special's blast are hit directly.
+    private IEnumerator DamageStones(HashSet<Cell> matches, HashSet<Cell> directHits)
     {
-        var hit = new HashSet<Cell>();
+        var hit = new HashSet<Cell>(directHits);
         var steps = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
         foreach (Cell cell in matches)
             foreach ((int dr, int dc) in steps)
@@ -253,6 +474,7 @@ public class MergeManager : MonoBehaviour
         var breaking = new List<Cell>();
         foreach (Cell cell in hit)
         {
+            if (!IsStoneCell(cell)) continue;
             Item stone = cell.CurrentItem;
             if (stone.DamageStone())
             {
@@ -429,14 +651,14 @@ public class MergeManager : MonoBehaviour
 
     // ----- Match detection ---------------------------------------------------
 
-    // Every cell that is part of a horizontal or vertical run of minMatch+ same
-    // colour. A cell shared by an intersecting row-run and column-run appears once
-    // (it is a HashSet), which is exactly the "L / T shapes clear both arms" rule.
-    private HashSet<Cell> FindMatches()
+    // Every horizontal or vertical run of minMatch+ same colour, as separate runs
+    // (length matters: four makes a Cross, five a Prism). A cell shared by a row-run
+    // and a column-run is in both — which is exactly the "L / T shapes clear both
+    // arms" rule once the runs are unioned.
+    private List<Run> FindRuns()
     {
-        var matched = new HashSet<Cell>();
+        var runs = new List<Run>();
 
-        // Horizontal runs.
         for (int r = 0; r < Rows; r++)
         {
             int c = 0;
@@ -448,14 +670,16 @@ public class MergeManager : MonoBehaviour
                     while (c + run < Cols && ColorAt(r, c + run) == color) run++;
 
                 if (color > 0 && run >= minMatch)
-                    for (int k = 0; k < run; k++)
-                        matched.Add(gridManager.GetCell(r, c + k));
+                {
+                    var cells = new List<Cell>(run);
+                    for (int k = 0; k < run; k++) cells.Add(gridManager.GetCell(r, c + k));
+                    runs.Add(new Run { cells = cells, color = color });
+                }
 
                 c += Mathf.Max(run, 1);
             }
         }
 
-        // Vertical runs.
         for (int c = 0; c < Cols; c++)
         {
             int r = 0;
@@ -467,13 +691,24 @@ public class MergeManager : MonoBehaviour
                     while (r + run < Rows && ColorAt(r + run, c) == color) run++;
 
                 if (color > 0 && run >= minMatch)
-                    for (int k = 0; k < run; k++)
-                        matched.Add(gridManager.GetCell(r + k, c));
+                {
+                    var cells = new List<Cell>(run);
+                    for (int k = 0; k < run; k++) cells.Add(gridManager.GetCell(r + k, c));
+                    runs.Add(new Run { cells = cells, color = color });
+                }
 
                 r += Mathf.Max(run, 1);
             }
         }
 
+        return runs;
+    }
+
+    private HashSet<Cell> FindMatches()
+    {
+        var matched = new HashSet<Cell>();
+        foreach (Run run in FindRuns())
+            matched.UnionWith(run.cells);
         return matched;
     }
 
@@ -558,12 +793,14 @@ public class MergeManager : MonoBehaviour
 
     /// <summary>Would swapping these two adjacent gems create a match? A pure query:
     /// it swaps, tests, and always swaps back, leaving the board unchanged (and the
-    /// transforms untouched — SwapItems is logical-only).</summary>
+    /// transforms untouched — SwapItems is logical-only). A Prism swaps with
+    /// anything that is not a stone.</summary>
     public bool WouldSwapMatch(Cell a, Cell b)
     {
         if (a == null || b == null || !a.IsOccupied() || !b.IsOccupied()) return false;
         // Stones don't swap — they are furniture until something breaks them.
         if (a.CurrentItem.IsStone || b.CurrentItem.IsStone) return false;
+        if (a.CurrentItem.Special == SpecialKind.Prism || b.CurrentItem.Special == SpecialKind.Prism) return true;
         SwapItems(a, b);
         bool made = HasAnyMatch();
         SwapItems(a, b);
@@ -612,5 +849,6 @@ public class MergeManager : MonoBehaviour
         // A torn-down component must not leave the board frozen mid-pipeline.
         StopAllCoroutines();
         IsResolving = false;
+        _prismPending = false;
     }
 }

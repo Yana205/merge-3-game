@@ -6,6 +6,10 @@ using UnityEngine;
 /// via <see cref="GemPalette.SpriteTierFor"/>, and a soft glow quad behind the
 /// sprite carries the vivid identity colour — the crystals' shared dark frame
 /// made the raw sprites too similar to tell apart at board size.
+///
+/// A gem can also be a <see cref="Special"/> (made by a match of four or five):
+/// it keeps its colour and matches normally, wears a spinning overlay so the
+/// player can read it at a glance, and does something big when it goes off.
 /// </summary>
 public class Item : MonoBehaviour
 {
@@ -28,6 +32,8 @@ public class Item : MonoBehaviour
 
     static Sprite _whiteSquare;
     static Sprite _glowSprite;
+    static Sprite _crossSprite;
+    static Sprite _ringSprite;
 
     /// <summary>The gem's colour index — its whole identity in match-3.</summary>
     public int Tier { get; private set; }
@@ -53,6 +59,11 @@ public class Item : MonoBehaviour
     /// <summary>Hits left before the stone shatters (2 = intact, 1 = cracked).</summary>
     public int StoneHp { get; private set; }
 
+    /// <summary>What this gem does when it goes off. None for an ordinary gem.</summary>
+    public SpecialKind Special { get; private set; }
+
+    public bool IsSpecial => Special != SpecialKind.None;
+
     // Direct (parent -> child) event: raised when this Item is about to return to
     // the pool, passing itself so its owner can react at the item's last position
     // (a clear burst, a sound). The subscriber list is cleared at the end of
@@ -61,6 +72,8 @@ public class Item : MonoBehaviour
     public event System.Action<Item> OnDespawned;
 
     private SpriteRenderer _glow;
+    private SpriteRenderer _specialFx;
+    private float _specialClock;
 
     /// <summary>
     /// The gem's authored resting scale, captured from the prefab at Awake. The
@@ -107,6 +120,7 @@ public class Item : MonoBehaviour
         }
 
         UpdateGlow();
+        if (IsSpecial) UpdateSpecialFx();   // a reshuffle recolours a special in place
     }
 
     /// <summary>
@@ -120,6 +134,7 @@ public class Item : MonoBehaviour
         Family = GemFamily.Red;
         IsStone = true;
         StoneHp = Mathf.Max(1, hp);
+        SetSpecial(SpecialKind.None);
 
         if (gemConfig != null)
             _sharedConfig = gemConfig;
@@ -158,6 +173,76 @@ public class Item : MonoBehaviour
         }
 
         UpdateGlow();
+    }
+
+    // --- Specials ---------------------------------------------------------------
+
+    /// <summary>Promote (or demote) this gem. The overlay is created lazily and
+    /// reused for the item's whole pooled life, like the glow.</summary>
+    public void SetSpecial(SpecialKind kind)
+    {
+        Special = kind;
+        _specialClock = 0f;
+        UpdateSpecialFx();
+    }
+
+    private void UpdateSpecialFx()
+    {
+        if (!IsSpecial)
+        {
+            if (_specialFx != null) _specialFx.enabled = false;
+            return;
+        }
+
+        if (_specialFx == null)
+        {
+            var go = new GameObject("SpecialFx");
+            go.transform.SetParent(transform, false);
+            _specialFx = go.AddComponent<SpriteRenderer>();
+        }
+
+        _specialFx.sprite = Special == SpecialKind.Prism ? GetRingSprite() : GetCrossSprite();
+        _specialFx.sortingLayerID = spriteRenderer.sortingLayerID;
+        _specialFx.sortingOrder = spriteRenderer.sortingOrder + 1;
+        _specialFx.enabled = true;
+
+        float gemWidth = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds.size.x : 1f;
+        _specialFx.transform.localScale = Vector3.one * gemWidth * (Special == SpecialKind.Prism ? 1.35f : 1.5f);
+        _specialFx.transform.localRotation = Quaternion.identity;
+        TintSpecial(0f);
+    }
+
+    // The overlay lives: a Cross spins its blades, a Prism spins and cycles the
+    // whole palette so it reads as "every colour" without a word of tutorial.
+    void Update()
+    {
+        if (!IsSpecial || _specialFx == null || !_specialFx.enabled) return;
+
+        _specialClock += Time.deltaTime;
+        float spin = Special == SpecialKind.Prism ? 70f : 45f;
+        _specialFx.transform.localRotation = Quaternion.Euler(0f, 0f, _specialClock * spin);
+
+        float pulse = 1f + 0.08f * Mathf.Sin(_specialClock * 6f);
+        float gemWidth = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds.size.x : 1f;
+        _specialFx.transform.localScale = Vector3.one * gemWidth * (Special == SpecialKind.Prism ? 1.35f : 1.5f) * pulse;
+
+        TintSpecial(_specialClock);
+    }
+
+    private void TintSpecial(float t)
+    {
+        if (Special == SpecialKind.Prism)
+        {
+            Color c = Color.HSVToRGB(Mathf.Repeat(t * 0.35f, 1f), 0.75f, 1f);
+            c.a = 0.95f;
+            _specialFx.color = c;
+        }
+        else
+        {
+            Color c = Color.Lerp(SignatureColor, Color.white, 0.55f);
+            c.a = 0.9f;
+            _specialFx.color = c;
+        }
     }
 
     // The glow child is created lazily and reused for the item's whole pooled life.
@@ -206,6 +291,7 @@ public class Item : MonoBehaviour
         GemData = null;
         IsStone = false;
         StoneHp = 0;
+        Special = SpecialKind.None;
 
         if (spriteRenderer != null)
         {
@@ -215,6 +301,8 @@ public class Item : MonoBehaviour
 
         if (_glow != null)
             _glow.enabled = false;
+        if (_specialFx != null)
+            _specialFx.enabled = false;
 
         // Pop/land animations scale the transform; make sure a recycled instance
         // never inherits a mid-animation scale.
@@ -268,5 +356,63 @@ public class Item : MonoBehaviour
             _glowSprite.name = "GemGlow";
         }
         return _glowSprite;
+    }
+
+    // Four soft blades — the Cross gem's "I clear a row and a column" badge.
+    static Sprite GetCrossSprite()
+    {
+        if (_crossSprite == null)
+        {
+            const int size = 64;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Color[] px = new Color[size * size];
+            float half = (size - 1) / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Abs(x - half) / half, dy = Mathf.Abs(y - half) / half;
+                    // A blade is thin near the centre and fades toward the tip.
+                    float blade = Mathf.Max(Mathf.Clamp01(1f - dy * 9f) * (1f - dx),
+                                            Mathf.Clamp01(1f - dx * 9f) * (1f - dy));
+                    float core = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) * 3f);
+                    float a = Mathf.Clamp01(blade * 1.2f + core * 0.6f);
+                    px[y * size + x] = new Color(1f, 1f, 1f, a);
+                }
+            }
+            tex.SetPixels(px);
+            tex.Apply();
+            _crossSprite = Sprite.Create(tex, new Rect(0, 0, size, size), Vector2.one * 0.5f, size);
+            _crossSprite.name = "GemCross";
+        }
+        return _crossSprite;
+    }
+
+    // A soft ring with four notches — the Prism's badge, tinted by hue cycling.
+    static Sprite GetRingSprite()
+    {
+        if (_ringSprite == null)
+        {
+            const int size = 64;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Color[] px = new Color[size * size];
+            float half = (size - 1) / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Mathf.Sqrt((x - half) * (x - half) + (y - half) * (y - half)) / half;
+                    float ring = Mathf.Clamp01(1f - Mathf.Abs(d - 0.82f) * 9f);
+                    float ang = Mathf.Atan2(y - half, x - half);
+                    float notch = Mathf.Clamp01(Mathf.Cos(ang * 4f) * 0.5f + 0.7f);
+                    px[y * size + x] = new Color(1f, 1f, 1f, ring * notch);
+                }
+            }
+            tex.SetPixels(px);
+            tex.Apply();
+            _ringSprite = Sprite.Create(tex, new Rect(0, 0, size, size), Vector2.one * 0.5f, size);
+            _ringSprite.name = "GemRing";
+        }
+        return _ringSprite;
     }
 }

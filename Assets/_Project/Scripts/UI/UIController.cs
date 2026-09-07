@@ -26,6 +26,15 @@ public class UIController : MonoBehaviour
     private Button _musicButton;
     private Button _sfxButton;
     private Label _placeHint;
+    private Label _stageLabel;
+    private VisualElement _stageBarFill;
+    private Label _toast;
+    private IVisualElementScheduledItem _toastHide;
+
+    // Stage window for the progress bar: the score it began at and the score the
+    // next stage begins at.
+    private int _stageStart;
+    private int _stageNext = 1;
 
     // Count-up state: what the label shows vs what the score really is. The
     // scheduled ticker is held so OnDisable can stop it — a scheduler left
@@ -56,6 +65,9 @@ public class UIController : MonoBehaviour
         _musicButton = root.Q<Button>("music-button");
         _sfxButton = root.Q<Button>("sfx-button");
         _placeHint = root.Q<Label>("place-hint");
+        _stageLabel = root.Q<Label>("stage-label");
+        _stageBarFill = root.Q<VisualElement>("stage-bar-fill");
+        _toast = root.Q<Label>("toast");
 
         if (_scoreLabel == null || _highScoreLabel == null || _restartButton == null)
             Debug.LogError("UIController: one or more HUD elements not found — check the name= attributes in GameHUD.uxml.");
@@ -83,6 +95,8 @@ public class UIController : MonoBehaviour
 
         GameEvents.ScoreChanged += OnScoreChanged;
         GameEvents.BestScoreChanged += SetHighScore;
+        GameEvents.StageChanged += OnStageChanged;
+        GameEvents.ColorUnlocked += OnColorUnlocked;
         AudioDirector.MuteChanged += RefreshAudioLabels;
     }
 
@@ -90,7 +104,11 @@ public class UIController : MonoBehaviour
     {
         GameEvents.ScoreChanged -= OnScoreChanged;
         GameEvents.BestScoreChanged -= SetHighScore;
+        GameEvents.StageChanged -= OnStageChanged;
+        GameEvents.ColorUnlocked -= OnColorUnlocked;
         AudioDirector.MuteChanged -= RefreshAudioLabels;
+        _toastHide?.Pause();
+        _toastHide = null;
 
         _countTicker?.Pause();
         _countTicker = null;
@@ -112,6 +130,7 @@ public class UIController : MonoBehaviour
     // points the player didn't lose.
     private void OnScoreChanged(int total)
     {
+        UpdateStageBar(total);
         if (_scoreLabel == null) return;
 
         if (total < _targetScore)
@@ -155,6 +174,51 @@ public class UIController : MonoBehaviour
         _punchRelease = _scoreLabel.schedule
             .Execute(() => _scoreLabel.RemoveFromClassList("score-numeral--punch"))
             .StartingIn(90);
+    }
+
+    // --- Stage ---------------------------------------------------------------
+
+    private int _lastStage = -1;
+
+    private void OnStageChanged(int stage, int colours, int stageStart, int nextStart)
+    {
+        _stageStart = stageStart;
+        _stageNext = Mathf.Max(stageStart + 1, nextStart);
+        if (_stageLabel != null) _stageLabel.text = (stage + 1).ToString();
+        UpdateStageBar(_targetScore);
+
+        bool up = _lastStage >= 0 && stage > _lastStage && stageStart > 0;
+        _lastStage = stage;
+        if (up)
+        {
+            _stageLabel?.AddToClassList("score-numeral--punch");
+            _stageLabel?.schedule.Execute(() => _stageLabel.RemoveFromClassList("score-numeral--punch")).StartingIn(140);
+            ShowToast("STAGE " + (stage + 1), new Color(1f, 0.85f, 0.35f));
+        }
+    }
+
+    private void OnColorUnlocked(int colourIndex)
+    {
+        ShowToast("NEW GEM: " + GemPalette.NameFor(colourIndex), Color.Lerp(GemPalette.ColorFor(colourIndex), Color.white, 0.25f));
+    }
+
+    private void UpdateStageBar(int score)
+    {
+        if (_stageBarFill == null) return;
+        float k = Mathf.Clamp01((score - _stageStart) / (float)Mathf.Max(1, _stageNext - _stageStart));
+        _stageBarFill.style.width = Length.Percent(k * 100f);
+    }
+
+    // One line at the top of the screen for a few seconds — the same slot the
+    // first-move hint uses, so messages never stack.
+    private void ShowToast(string text, Color colour)
+    {
+        if (_toast == null) return;
+        _toast.text = text;
+        _toast.style.color = colour;
+        _toast.RemoveFromClassList("toast--hidden");
+        _toastHide?.Pause();
+        _toastHide = _toast.schedule.Execute(() => _toast.AddToClassList("toast--hidden")).StartingIn(2400);
     }
 
     private void SetHighScore(int best)
