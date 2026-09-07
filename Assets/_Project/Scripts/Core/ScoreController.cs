@@ -25,12 +25,14 @@ public class ScoreController : MonoBehaviour
     private void AddListeners()
     {
         GameEvents.TileMerged += HandleTileMerged;
+        GameEvents.StoneBroken += HandleStoneBroken;
         GameEvents.SaveRequested += HandleSaveRequested;
     }
 
     private void RemoveListeners()
     {
         GameEvents.TileMerged -= HandleTileMerged;
+        GameEvents.StoneBroken -= HandleStoneBroken;
         GameEvents.SaveRequested -= HandleSaveRequested;
     }
 
@@ -50,6 +52,15 @@ public class ScoreController : MonoBehaviour
     {
         if (merged == null) return;
         int points = merged.GemData != null ? merged.GemData.scoreValue : merged.Tier * 10;
+        AddScore(points);
+    }
+
+    // Breaking a stone pays out its GemData value (the red ladder's) — earning
+    // through obstacles, not just around them.
+    private void HandleStoneBroken(Item stone, Cell cell)
+    {
+        if (stone == null) return;
+        int points = stone.GemData != null ? stone.GemData.scoreValue : 50;
         AddScore(points);
     }
 

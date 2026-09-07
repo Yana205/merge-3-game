@@ -16,7 +16,13 @@
 // - READINESS:       OnServicesReady fires (and IsReady flips true) only after
 //                    every service above is built and injected; LevelManager
 //                    waits for it before loading the first level.
-using System.Threading.Tasks;
+//
+// WEBGL NOTE — why this is callback-based, not async/await:
+// `await handle.Task` NEVER RESOLVES on WebGL (single-threaded; the handle's
+// Task is not driven), so the old async version silently left IsReady false
+// forever in browser builds — the menu showed, PRESS START faded the screen,
+// and no board ever arrived. The Completed callback is fired by Addressables
+// itself on the main thread and works on every platform.
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -39,9 +45,7 @@ public class ServiceLoader : MonoBehaviour
 
     private ItemFactory _itemFactory;
 
-    void Start() => _ = LoadAsync();
-
-    public async Task LoadAsync()
+    void Start()
     {
         // Save system -> ScoreController (synchronous wiring, kept from Loader).
         if (scoreController == null)
@@ -56,14 +60,15 @@ public class ServiceLoader : MonoBehaviour
 
         progressManager?.Setup(new PlayerPrefsSaveSystem("GameProgress"));
 
-        var handle = Addressables.LoadAssetAsync<GameObject>("GemItem");
-        await handle.Task;
+        Addressables.LoadAssetAsync<GameObject>("GemItem").Completed += HandleGemItemLoaded;
+    }
 
-        if (handle.Status != AsyncOperationStatus.Succeeded)
+    private void HandleGemItemLoaded(AsyncOperationHandle<GameObject> handle)
+    {
+        if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
         {
-            Debug.LogError(handle.OperationException != null
-                ? handle.OperationException.Message
-                : "GemItem load failed");
+            Debug.LogError("ServiceLoader: GemItem load failed — " +
+                (handle.OperationException != null ? handle.OperationException.Message : "no exception info"));
             return;
         }
 
@@ -79,6 +84,9 @@ public class ServiceLoader : MonoBehaviour
             gridManager.SetItemFactory(_itemFactory);
 
         IsReady = true;
+        // Logged on purpose: this line in a browser console is the proof that the
+        // WebGL build got past the Addressables load (see WEBGL NOTE above).
+        Debug.Log("ServiceLoader: services ready.");
         OnServicesReady?.Invoke();
     }
 }

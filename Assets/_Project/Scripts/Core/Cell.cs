@@ -57,10 +57,17 @@ public class Cell : MonoBehaviour
         return CurrentItem != null;
     }
 
-    public void PlaceItem(Item item)
+    /// <summary>
+    /// Make this cell own <paramref name="item"/>. By default the item's transform
+    /// snaps to the cell; pass <c>snap: false</c> when an animation is about to
+    /// move the visual there itself (swaps, falls, refills) — the logical board
+    /// and the on-screen gem are deliberately decoupled during animation.
+    /// </summary>
+    public void PlaceItem(Item item, bool snap = true)
     {
         CurrentItem = item;
-        item.transform.position = transform.position;
+        if (snap)
+            item.transform.position = transform.position;
     }
 
     public void RemoveItem()

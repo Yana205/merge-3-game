@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// All of the game's sound, in one place, driven entirely by the
@@ -6,12 +7,16 @@ using UnityEngine;
 /// which handles the visual half of the same moments. No gameplay system
 /// references this, and it references none of them.
 ///
+///   GemSelected   → a soft click (the pick is acknowledged)
+///   MatchResolved → ONE pop per group, pitch climbing with the cascade combo —
+///                   a cascade literally sounds like going up a scale — plus a
+///                   crash accent when a combo gets big
+///   SwapDenied    → a low, quiet thud ("not that one")
+///
 /// Clips are plain serialized references rather than Addressables. The
 /// Addressables path is exactly what makes PRESS START die on itch when content
 /// is not built before the player, and audio gains nothing from it — a direct
 /// reference is included in the build automatically and cannot fail to load.
-///
-/// Drop this on any always-present GameObject alongside JuiceDirector.
 /// </summary>
 public class AudioDirector : MonoBehaviour
 {
@@ -21,23 +26,31 @@ public class AudioDirector : MonoBehaviour
     [SerializeField] private float musicVolume = 0.35f;
 
     [Header("Sound effects")]
-    [SerializeField] private AudioClip mergeClip;
-    [SerializeField] private AudioClip shatterClip;
-    [SerializeField] private AudioClip pickaxeArmClip;
+    [Tooltip("The match pop. Played once per cleared group, pitch rising per combo.")]
+    [FormerlySerializedAs("mergeClip")]
+    [SerializeField] private AudioClip matchClip;
+
+    [Tooltip("Accent crash layered on top of big cascades (combo 3+).")]
+    [FormerlySerializedAs("shatterClip")]
+    [SerializeField] private AudioClip crashClip;
+
+    [Tooltip("Soft click when the player picks a gem.")]
+    [FormerlySerializedAs("pickaxeArmClip")]
+    [SerializeField] private AudioClip selectClip;
+
     [Range(0f, 1f)]
     [SerializeField] private float sfxVolume = 0.7f;
 
-    [Header("Merge pitch ladder")]
-    [Tooltip("Pitch of a tier-1 merge. Each tier above multiplies by the step " +
-             "below, so merging up the ladder literally sounds like climbing.")]
+    [Header("Combo pitch ladder")]
+    [Tooltip("Pitch of the first match in a move. Each cascade step multiplies by " +
+             "the step below, so a chain literally sounds like climbing.")]
     [Range(0.5f, 1.5f)]
-    [SerializeField] private float basePitch = 0.85f;
+    [SerializeField] private float basePitch = 0.95f;
 
-    [Tooltip("Pitch multiplier per tier. 1.09 is roughly one semitone, so seven " +
-             "tiers span about a fifth — audible as progress without the top of " +
-             "the ladder turning into a whistle.")]
+    [Tooltip("Pitch multiplier per combo step. 1.12 ≈ two semitones — an audible " +
+             "climb that stays musical over a long cascade.")]
     [Range(1.0f, 1.3f)]
-    [SerializeField] private float pitchPerTier = 1.09f;
+    [SerializeField] private float pitchPerCombo = 1.12f;
 
     private AudioSource _musicSource;
     private AudioSource _sfxSource;
@@ -80,54 +93,73 @@ public class AudioDirector : MonoBehaviour
 
     void OnEnable()
     {
-        GameEvents.TileMerged += HandleTileMerged;
-        GameEvents.TileShattered += HandleTileShattered;
-        GameEvents.PickaxeChanged += HandlePickaxeChanged;
+        GameEvents.MatchResolved += HandleMatchResolved;
+        GameEvents.SwapDenied += HandleSwapDenied;
+        GameEvents.GemSelected += HandleGemSelected;
+        GameEvents.StoneDamaged += HandleStoneDamaged;
+        GameEvents.StoneBroken += HandleStoneBroken;
     }
 
     void OnDisable()
     {
-        GameEvents.TileMerged -= HandleTileMerged;
-        GameEvents.TileShattered -= HandleTileShattered;
-        GameEvents.PickaxeChanged -= HandlePickaxeChanged;
+        GameEvents.MatchResolved -= HandleMatchResolved;
+        GameEvents.SwapDenied -= HandleSwapDenied;
+        GameEvents.GemSelected -= HandleGemSelected;
+        GameEvents.StoneDamaged -= HandleStoneDamaged;
+        GameEvents.StoneBroken -= HandleStoneBroken;
     }
 
     // --- Bus handlers -------------------------------------------------------
 
-    // Pitch rises with the tier that was PRODUCED, so a merge into tier 5 sounds
-    // higher than one into tier 2 and a run up the ladder reads as an ascending
-    // line rather than the same click seven times.
-    private void HandleTileMerged(Item item, Cell cell)
+    // One pop per cleared GROUP, not per gem — five gems popping at once should be
+    // one satisfying burst, not five copies of the same clip clipping the mixer.
+    private void HandleMatchResolved(int combo, int gemCount, int points, Vector3 centre)
     {
-        if (mergeClip == null || _sfxSource == null) return;
+        if (_sfxSource == null) return;
 
-        int tier = item != null ? item.Tier : 1;
-        _sfxSource.pitch = basePitch * Mathf.Pow(pitchPerTier, Mathf.Max(0, tier - 1));
-        _sfxSource.PlayOneShot(mergeClip, sfxVolume);
-    }
+        if (matchClip != null)
+        {
+            _sfxSource.pitch = basePitch * Mathf.Pow(pitchPerCombo, Mathf.Max(0, combo - 1));
+            _sfxSource.PlayOneShot(matchClip, sfxVolume);
+        }
 
-    private void HandleTileShattered(Item item, Cell cell)
-    {
-        if (shatterClip == null || _sfxSource == null) return;
-
-        // Flat pitch: the shatter is the same act whatever it destroys, and it
-        // costs a charge either way.
-        _sfxSource.pitch = 1f;
-        _sfxSource.PlayOneShot(shatterClip, sfxVolume);
-    }
-
-    // Only the arming edge is worth a sound. Charge awards are silent — they
-    // happen mid-merge and would collide with the merge chime; spending is already
-    // covered by the shatter.
-    private bool _wasArmed;
-    private void HandlePickaxeChanged(int charges, bool armed)
-    {
-        if (armed && !_wasArmed && pickaxeArmClip != null && _sfxSource != null)
+        // Big cascades earn a crash on top — the moment the run feels lucky.
+        if (crashClip != null && combo >= 3)
         {
             _sfxSource.pitch = 1f;
-            _sfxSource.PlayOneShot(pickaxeArmClip, sfxVolume);
+            _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.6f);
         }
-        _wasArmed = armed;
+    }
+
+    // Low and quiet: information, not punishment.
+    private void HandleSwapDenied(Vector3 centre)
+    {
+        if (matchClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = 0.55f;
+        _sfxSource.PlayOneShot(matchClip, sfxVolume * 0.45f);
+    }
+
+    private void HandleGemSelected(Vector3 position)
+    {
+        if (selectClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = Random.Range(1.02f, 1.10f);   // tiny variance stops the machine-gun effect
+        _sfxSource.PlayOneShot(selectClip, sfxVolume * 0.35f);
+    }
+
+    // A dull knock: the stone took the hit and held.
+    private void HandleStoneDamaged(Item stone, Cell cell)
+    {
+        if (crashClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = 0.7f;
+        _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.4f);
+    }
+
+    // The full crash — a stone is out of the way.
+    private void HandleStoneBroken(Item stone, Cell cell)
+    {
+        if (crashClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = 1.05f;
+        _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.8f);
     }
 
     // --- Mute ---------------------------------------------------------------

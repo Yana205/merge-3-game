@@ -1,22 +1,17 @@
 /// <summary>
-/// Which merge chain a gem belongs to. A gem's identity is (family, tier): two
-/// gems merge only when BOTH match, so a red 3 and a standard 3 are different
-/// gems that happen to share a number.
-///
-/// Every rule that used to compare bare tiers must compare family too — most
-/// importantly <see cref="GridManager.HasAnyValidMerge"/>, the jam check. A
-/// tier-only check would read a board of reds beside standards as playable and
-/// the run would never end.
+/// Legacy axis from the merge-chain era, kept because GemConfig serializes it.
+/// The match-3 game only ever spawns <see cref="Standard"/>; a gem's playable
+/// identity is its colour index alone (see <see cref="GemPalette"/>).
 ///
 /// Values are explicit because this enum is serialized into GemConfig and onto
-/// Items; reordering the members would silently repaint the board.
+/// Items; reordering the members would silently repaint stored data.
 /// </summary>
 public enum GemFamily
 {
     /// <summary>The original ladder — obsidian through diamond.</summary>
     Standard = 0,
 
-    /// <summary>The red chain. Merges only with itself; tops out short of the
-    /// standard ladder, so a maxed red is a permanently occupied cell.</summary>
+    /// <summary>The red chain from the retired place-and-fuse mode. Unused in
+    /// match-3 but kept so GemConfig's serialized red ladder stays readable.</summary>
     Red = 1,
 }

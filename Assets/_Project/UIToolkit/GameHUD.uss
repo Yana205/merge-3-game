@@ -122,34 +122,50 @@ Button:active {
     background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
 }
 
-/* --- Pickaxe -----------------------------------------------------------
-   Three states the player must be able to tell apart at a glance: empty
-   (nothing to spend), ready (a charge banked), armed (the next tap shatters).
-   Armed borrows the pressed frame so the button visibly stays down — the board
-   is in a mode, and a flat button would not say so. */
+/* --- Score punch --------------------------------------------------------
+   UI Toolkit has no keyframe animation, so the punch is a class UIController
+   toggles on for one beat: scale snaps up with the class, and this transition
+   eases it back down when the class is removed. */
 
-.pickaxe-button--empty {
-    opacity: 0.35;
+.score-numeral {
+    transition-property: scale, color;
+    transition-duration: 0.18s;
+    transition-timing-function: ease-out-cubic;
 }
 
-.pickaxe-button--armed {
-    background-image: url("project:///Assets/_Project/Art/ui-kit/sprites/button_pressed.png");
-    color: rgb(245, 197, 66);
+.score-numeral--punch {
+    scale: 1.25 1.25;
+    color: rgb(255, 246, 219);
 }
 
-/* The jam prompt. Gold on the panel, hidden until the board actually jams with
-   a charge in hand — display:none rather than opacity so it takes no layout
-   space in the normal case and the panel does not reserve a gap for it. */
-.rescue-hint {
+/* Absolutely positioned so it does not take part in .hud-root's top-left flow —
+   the score panel must not move because a hint appeared.
+
+   ABOVE the board, not below it. Below is where the queue previews live, and a
+   caption there lands directly on top of the three crystals it is describing. */
+.place-hint-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    align-items: center;
+}
+
+.place-hint {
     -unity-font-definition: url("project:///Assets/_Project/Art/ui-kit/fonts/Silkscreen-Bold.ttf");
-    font-size: 12px;
+    font-size: 13px;
     letter-spacing: 1px;
     color: rgb(245, 197, 66);
-    white-space: normal;
-    margin-top: 8px;
-    display: none;
+    padding: 6px 14px;
+    background-color: rgba(12, 8, 32, 0.72);
+    border-radius: 4px;
+    transition-property: opacity;
+    transition-duration: 0.45s;
+    opacity: 1;
 }
 
-.rescue-hint--visible {
-    display: flex;
+/* Faded rather than display:none — the row keeps its size, so nothing under the
+   board shifts at the moment the player makes their first move. */
+.place-hint--done {
+    opacity: 0;
 }

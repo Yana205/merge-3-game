@@ -1,14 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// Runs the game as a single endless board. There is no level select, no authored
-/// level data, and no depth: one grid is built when the run starts and lives until
-/// it jams. Difficulty is not a stage the player crosses into — it is a continuous
-/// function of the running score, applied on every move by <see cref="DifficultyCurve"/>.
-///
-/// This manager owns the spawn decision because it is the only object that already
-/// holds references to all three parties: the score, the grid, and the input that
-/// signals a completed move.
+/// Runs the game as a single endless match-3 board: one grid is built when the
+/// run starts, kept full and always playable by MergeManager, and never rebuilt.
+/// This manager owns run lifecycle only — start, restart, score relay — because
+/// it is the one object that already holds references to all three parties: the
+/// score, the grid, and the input that signals a completed move.
 /// </summary>
 public class LevelManager : MonoBehaviour
 {
@@ -23,9 +20,6 @@ public class LevelManager : MonoBehaviour
     // serialization and for future direct-hook needs.
     public MergeManager mergeManager;
     [SerializeField] private ProgressManager progressManager;
-    [Tooltip("Optional. Cleared at the start of each run so banked charges never " +
-             "carry over into a fresh board.")]
-    [SerializeField] private PickaxeController pickaxeController;
 
     [Header("Transitions (assign in Inspector)")]
     public ScreenFader screenFader;
@@ -46,17 +40,9 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private int endlessRows = 6;
     [SerializeField] private int endlessCols = 6;
 
-    [Tooltip("Chance each cell starts empty when the board is first laid out.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float startingEmptyChance = 0.28f;
-
-    [Tooltip("Adjacent same-tier pairs guaranteed on the opening board. A random " +
-             "fill can contain none at all, which is an instant loss.")]
-    [Min(0)]
-    [SerializeField] private int startingGuaranteedPairs = 3;
-
-    [Header("Difficulty")]
-    [SerializeField] private DifficultyCurve difficulty = new DifficultyCurve();
+    [Tooltip("Eye-crystal stones seeded into a fresh board, so every run opens " +
+             "with something to break. Refills add more over time (MergeManager).")]
+    [SerializeField] private int startingStones = 2;
 
     // ----- Runtime state -----------------------------------------------------
 
@@ -132,6 +118,7 @@ public class LevelManager : MonoBehaviour
         // GameEvents.TileMerged -> ScoreController -> GameEvents.ScoreChanged, and
         // LevelManager reacts here instead of scoring the merge itself.
         GameEvents.ScoreChanged += HandleScoreChanged;
+
     }
 
     private void RemoveListeners()
@@ -200,12 +187,8 @@ public class LevelManager : MonoBehaviour
         scoreController?.ResetScore();   // resets score AND raises ScoreChanged(0)
         _localScore = 0;
 
-        // After the score reset, not before: PickaxeController watches ScoreChanged
-        // to move its goalpost, so resetting it first would let the reset-to-zero
-        // event walk the goalpost straight back down again.
-        pickaxeController?.ResetRun();
-
         BuildStartingBoard();
+
         OnScoreChanged?.Invoke(CurrentScore, BestScore);
         GameEvents.RaiseBestScoreChanged(BestScore);
 
@@ -215,92 +198,70 @@ public class LevelManager : MonoBehaviour
             inputHandler.ResetState();
     }
 
-    // The one and only board build of a run. Everything after this is spawning
-    // into the board the player is already playing on.
+    // The one and only board build of a run. The board is filled completely — a
+    // match-3 board is always full — with random colours chosen so no line of three
+    // exists at the start, then handed to MergeManager to guarantee a legal move.
     void BuildStartingBoard()
     {
         if (gridManager == null) return;
 
+        // A restart can land mid-cascade; kill the pipeline before its gems die.
+        mergeManager?.CancelResolve();
+
         gridManager.CreateGrid(endlessRows, endlessCols);
 
+        int colors = mergeManager != null ? mergeManager.ColorCount : 6;
+
         for (int r = 0; r < endlessRows; r++)
+        {
             for (int c = 0; c < endlessCols; c++)
             {
-                if (Random.value < startingEmptyChance) continue;
-                // Score 0, so the curve hands back tier 1 — the opening board is
-                // pure fodder by construction, no special case needed.
-                gridManager.SpawnItem(gridManager.GetCell(r, c), difficulty.PickTierAt(0));
+                int color = PickColorNoMatch(r, c, colors);
+                gridManager.SpawnItem(gridManager.GetCell(r, c), color, GemFamily.Standard);
             }
+        }
 
-        EnsureGuaranteedPairs(startingGuaranteedPairs);
+        // Stones before the playability pass, so EnsurePlayable already knows
+        // which cells are furniture when it verifies a legal move exists.
+        mergeManager?.SeedStones(startingStones);
+
+        // A random fill can still deal a board with no possible swap; MergeManager
+        // reshuffles until at least one move exists.
+        mergeManager?.EnsurePlayable();
     }
 
-    // A move landed. This is where difficulty actually bites: how many gems arrive
-    // and how awkward they are is read straight off the running score.
+    // A colour for cell (r,c) that does not complete a run of three with the two
+    // cells already placed to its left or below it. Filling left-to-right,
+    // bottom-to-top means those neighbours are the only ones that exist yet.
+    int PickColorNoMatch(int r, int c, int colors)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            int color = Random.Range(1, colors + 1);
+            if (c >= 2 && ColorAt(r, c - 1) == color && ColorAt(r, c - 2) == color) continue;
+            if (r >= 2 && ColorAt(r - 1, c) == color && ColorAt(r - 2, c) == color) continue;
+            return color;
+        }
+        return Random.Range(1, colors + 1);
+    }
+
+    int ColorAt(int r, int c)
+    {
+        Cell cell = gridManager.GetCell(r, c);
+        return (cell != null && cell.IsOccupied()) ? cell.CurrentItem.Tier : 0;
+    }
+
+    // A placement resolved (and any fusion with it). Nothing spawns here any more —
+    // the board only ever grows by the crystal the player just put down, which is
+    // the whole point of the redesign. Kept as a hook so the run has one clear
+    // "a move happened" seam for future systems.
     void HandleMoveCompleted()
     {
-        if (!_runActive || gridManager == null) return;
-
-        int score = CurrentScore;
-        int count = difficulty.SpawnCountAt(score);
-
-        for (int i = 0; i < count; i++)
-        {
-            Cell cell = gridManager.GetRandomEmptyCell();
-            // Board is full. Stop here — InputHandler runs the jam check next.
-            if (cell == null) break;
-
-            // Family first, then tier: reds always enter at tier 1, so the tier
-            // roll depends on which chain this gem landed in.
-            GemFamily family = difficulty.PickFamilyAt(score);
-            gridManager.SpawnItem(cell, difficulty.PickTierAt(score, family), family);
-        }
-    }
-
-    // A random fill can start with no adjacent same-tier pair, which is an
-    // instant game over on a full board. Copy a random item's tier into one
-    // of its neighbours until the board has at least `wanted` merge pairs.
-    void EnsureGuaranteedPairs(int wanted)
-    {
-        if (wanted <= 0 || gridManager == null) return;
-
-        for (int safety = 0; safety < 64; safety++)
-        {
-            if (gridManager.CountAdjacentSameTierPairs() >= wanted)
-                return;
-
-            Cell source = gridManager.GetCell(
-                Random.Range(0, gridManager.rows), Random.Range(0, gridManager.cols));
-            if (source == null || !source.IsOccupied()
-                || source.CurrentItem.Tier >= Item.MaxTierFor(source.CurrentItem.Family))
-                continue;
-
-            int dr = Random.Range(-1, 2), dc = Random.Range(-1, 2);
-            if (dr == 0 && dc == 0) continue;
-            Cell target = gridManager.GetCell(source.row + dr, source.col + dc);
-            if (target == null) continue;
-
-            // Copy family as well as tier — a "guaranteed pair" that spans two
-            // chains is not a pair at all, and the board could open unplayable.
-            int tier = source.CurrentItem.Tier;
-            GemFamily family = source.CurrentItem.Family;
-            if (target.IsOccupied())
-            {
-                if (target.CurrentItem.Tier == tier
-                    && target.CurrentItem.Family == family) continue;
-                Item old = target.CurrentItem;
-                target.RemoveItem();
-                gridManager.DespawnItem(old);
-            }
-            gridManager.SpawnItem(target, tier, family);
-        }
-
-        Debug.LogWarning("LevelManager: could not guarantee " + wanted + " merge pairs at board setup.");
+        if (!_runActive) return;
     }
 
     // Bus handler: ScoreController owns the number and raises ScoreChanged after
-    // every change. With no target to clear, this is now purely a HUD relay — the
-    // score's only mechanical job is feeding DifficultyCurve on the next move.
+    // every change. With no target to clear, this is purely a HUD/leaderboard relay.
     void HandleScoreChanged(int total)
     {
         if (!_runActive) return;
