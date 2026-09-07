@@ -4,7 +4,8 @@ using UnityEngine;
 /// The one move in the game: swap two adjacent gems. If the swap makes a match it
 /// stands and the board resolves (animated — see MergeManager); if it makes
 /// nothing the input layer slides the gems back, so an illegal swap costs the
-/// player nothing.
+/// player nothing. A Prism is the exception: swapping it with anything is a
+/// move, and it clears every gem of that colour.
 ///
 /// Kept as the single thing the input layer talks to (its name is historical — it
 /// used to place crystals). InputHandler asks "can these two swap?" and gets a yes
@@ -44,9 +45,9 @@ public class PlacementController : MonoBehaviour
 
     /// <summary>
     /// Swap the gems in <paramref name="a"/> and <paramref name="b"/>. Returns true
-    /// and starts the animated resolve when the swap creates a match; returns false
-    /// and reverts the (logical) swap when it does not. The caller owns the slide
-    /// animation either way — this only ever touches board state.
+    /// and starts the animated resolve when the swap creates a match (or fires a
+    /// Prism); returns false and reverts the (logical) swap when it does not. The
+    /// caller owns the slide animation either way — this only ever touches board state.
     /// </summary>
     public bool TrySwap(Cell a, Cell b)
     {
@@ -55,7 +56,22 @@ public class PlacementController : MonoBehaviour
         if (a.CurrentItem.IsStone || b.CurrentItem.IsStone) return false;
         if (!AreAdjacent(a, b)) return false;
 
+        bool prismA = a.CurrentItem.Special == SpecialKind.Prism;
+        bool prismB = b.CurrentItem.Special == SpecialKind.Prism;
+
         mergeManager.SwapItems(a, b);
+        mergeManager.NoteSwap(a, b);
+
+        if (prismA || prismB)
+        {
+            // After the swap the Prism sits in the OTHER cell; the gem it was
+            // swapped with now sits where the Prism was and names the colour.
+            Cell prismCell = prismA ? b : a;
+            Item partner = prismA ? a.CurrentItem : b.CurrentItem;
+            int colour = (prismA && prismB) ? 0 : partner.Tier;
+            mergeManager.BeginPrismResolve(prismCell, colour);
+            return true;
+        }
 
         if (mergeManager.HasAnyMatch())
         {

@@ -34,6 +34,16 @@ public static class GemPalette
         new Color(0.55f, 0.95f, 1.00f),   // 6 diamond   — ice cyan
     };
 
+    // Short display names for HUD toasts ("NEW GEM: SAPPHIRE").
+    private static readonly string[] Names = { "RUBY", "EMERALD", "SAPPHIRE", "CITRINE", "ROSE", "DIAMOND" };
+
+    /// <summary>Display name of a colour index, upper-case for the pixel fonts.</summary>
+    public static string NameFor(int colorIndex)
+    {
+        int i = Mathf.Clamp(colorIndex - 1, 0, Names.Length - 1);
+        return Names[i];
+    }
+
     /// <summary>The Standard-ladder tier whose sprite this colour index wears.</summary>
     public static int SpriteTierFor(int colorIndex)
     {

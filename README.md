@@ -6,7 +6,7 @@ A crystal match-3 built in Unity 6 with Claude Code driving the Unity Editor thr
 
 <img width="780" height="492" alt="Land of the Lustrous board" src="https://github.com/user-attachments/assets/442b20ff-90c1-4bfc-a21a-b7b3376d1967" />
 
-**How to play:** swap two neighbouring gems (tap-tap or swipe) to line up three or more. Matches pop, gems fall, new ones drop in from above, and every cascade raises the combo. Red eye-crystal stones block cells; match beside one twice to shatter it. The run is endless, your best score goes on the leaderboard.
+**How to play:** swap two neighbouring gems (tap-tap or swipe) to line up three or more. Matches pop, gems fall, new ones drop in from above, and every cascade raises the combo. Match four to forge a **Cross** gem that clears its row and column, match five for a **Prism** that wipes every gem of the colour you swap it with. Red eye-crystal stones block cells; match beside one twice to shatter it. Each **stage** adds a new gem colour, then more stones. The run is endless, your best score goes on the leaderboard.
 
 ## Progress
 
@@ -25,7 +25,8 @@ A crystal match-3 built in Unity 6 with Claude Code driving the Unity Editor thr
 | URP HLSL shader: the "magical" surface | `MagicalCrystal`: procedural noise, scrolling UVs, base-to-glow blend, breathing alpha on every board cell. | `Shaders/MagicalCrystal.shader` |
 | Shader effects and runtime control | A ShaderToy plasma ported to HLSL as the cavern aura, with a C# controller driving `_Intensity` through `renderer.material` and cleaning it up. | `Shaders/CrystalAura.shader`, `Scripts/FX/CrystalAuraController.cs` |
 | Data-driven design with ScriptableObjects | Gem tiers, sprites and score values live in `GemConfig`; a `GemDefinition` / `GemDatabase` family with weighted random, JSON import and an editor validator. | `Scripts/Data/`, `Data/GemConfig.asset`, `Scripts/Editor/GemDataTools.cs` |
-| Game feel: juice, particles, audio | Animated pop / fall / refill cascade, spring swaps, camera shake, spark bursts, floating score, combo popups, pitch-climbing match sound, music and SFX toggles. | `Scripts/Core/MergeManager.cs`, `Scripts/FX/JuiceDirector.cs`, `Scripts/FX/AudioDirector.cs` |
+| Game feel: juice, particles, audio | Animated pop / fall / refill cascade, spring swaps, camera shake, spark bursts, colour-tinted pixel-font popups, beams and screen flashes for special gems, pitch-climbing match sound, music and SFX toggles. | `Scripts/Core/MergeManager.cs`, `Scripts/FX/JuiceDirector.cs`, `Scripts/FX/AudioDirector.cs` |
+| Progression and special gems (game design) | A score-driven stage curve unlocks colours one at a time, then ramps stone pressure; Cross and Prism gems reward 4- and 5-matches and chain into each other. | `Scripts/Level/StageDirector.cs`, `Scripts/Core/MergeManager.cs`, `Scripts/Data/SpecialKind.cs` |
 | AI as director, not typist | Claude Code with project skills (`.claude/skills/`) drives the Editor over Unity MCP: scene wiring, prefab edits, play-mode tests and screenshots, one lesson per branch with a self-review gate. | `.claude/skills/lesson-loop`, `docs/course/` |
 
 ## Each concept in one sentence
@@ -41,6 +42,7 @@ A crystal match-3 built in Unity 6 with Claude Code driving the Unity Editor thr
 - **Runtime material control:** C# writes a shader property every frame through an instanced material and destroys it on teardown, so effects respond to gameplay without leaking memory.
 - **ScriptableObjects and data-driven design:** gem stats are assets designers edit in the Inspector, and a JSON pipeline with validation bulk-creates them without code changes.
 - **Game feel (juice):** small timed exaggerations such as squash on landing, shake on big matches and rising pitch on combos make the same rules feel far more satisfying.
+- **Progression curve and power-ups:** introducing one new thing at a time (a colour, then stones) keeps the difficulty climbing, while special gems give the player big, earned moments to chase.
 - **Unity MCP with Claude Code:** the AI agent operates the real Editor to wire scenes, run play tests and take screenshots, so changes are verified in the game, not just in text.
 
 ## Development workflow

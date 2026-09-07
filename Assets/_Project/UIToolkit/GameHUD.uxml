@@ -25,6 +25,15 @@
                 <ui:Label name="high-score-label" text="0" class="numeral" />
             </ui:VisualElement>
 
+            <!-- Stage + progress toward the next one (StageDirector over the bus). -->
+            <ui:VisualElement class="stat-row stage-row">
+                <ui:Label text="STAGE" class="field-label" />
+                <ui:Label name="stage-label" text="1" class="numeral score-numeral" />
+            </ui:VisualElement>
+            <ui:VisualElement name="stage-bar" class="stage-bar">
+                <ui:VisualElement name="stage-bar-fill" class="stage-bar-fill" />
+            </ui:VisualElement>
+
             <!-- Button = the type selector; clicked is wired in UIController. -->
             <ui:Button name="restart-button" text="RESTART" class="restart-button" />
             <!-- Audio toggles. Music is OFF by default (see AudioDirector); the
@@ -37,6 +46,8 @@
              so it teaches once and never nags. -->
         <ui:VisualElement name="place-hint-row" class="place-hint-row" picking-mode="Ignore">
             <ui:Label name="place-hint" text="SWAP TWO GEMS TO LINE UP 3" class="place-hint" />
+            <!-- Stage-ups and new gems announce themselves here for a beat. -->
+            <ui:Label name="toast" text="" class="toast toast--hidden" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

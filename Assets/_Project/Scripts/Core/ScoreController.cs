@@ -26,6 +26,7 @@ public class ScoreController : MonoBehaviour
     {
         GameEvents.TileMerged += HandleTileMerged;
         GameEvents.StoneBroken += HandleStoneBroken;
+        GameEvents.BonusScore += HandleBonusScore;
         GameEvents.SaveRequested += HandleSaveRequested;
     }
 
@@ -33,6 +34,7 @@ public class ScoreController : MonoBehaviour
     {
         GameEvents.TileMerged -= HandleTileMerged;
         GameEvents.StoneBroken -= HandleStoneBroken;
+        GameEvents.BonusScore -= HandleBonusScore;
         GameEvents.SaveRequested -= HandleSaveRequested;
     }
 
@@ -62,6 +64,12 @@ public class ScoreController : MonoBehaviour
         if (stone == null) return;
         int points = stone.GemData != null ? stone.GemData.scoreValue : 50;
         AddScore(points);
+    }
+
+    // Special-gem bonuses: points with no single gem to hang them on.
+    private void HandleBonusScore(int points, Vector3 at)
+    {
+        if (points > 0) AddScore(points);
     }
 
     // Persist on request. ScoreController raises SaveRequested itself after every

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -31,8 +32,31 @@ public static class GameEvents
 
     /// <summary>Raised once per match group as it pops. Args: cascade combo level
     /// (1 = the swap's own match, 2+ = cascades), gems cleared in this group,
-    /// points the group is worth, and the group's world-space centre.</summary>
-    public static event Action<int, int, int, Vector3> MatchResolved;
+    /// points the group is worth, the group's world-space centre, and the
+    /// signature colour of the gems that made it (for tinted feedback).</summary>
+    public static event Action<int, int, int, Vector3, Color> MatchResolved;
+
+    /// <summary>Raised when a match of four or five turns a gem into a special.
+    /// Args: the new special and its Cell.</summary>
+    public static event Action<Item, Cell> SpecialCreated;
+
+    /// <summary>Raised when a special gem goes off, BEFORE its victims pop.
+    /// Args: the kind, the special's world position, its signature colour, and
+    /// every cell its blast covers.</summary>
+    public static event Action<SpecialKind, Vector3, Color, List<Cell>> SpecialFired;
+
+    /// <summary>Raised for points that are not tied to one gem (special-gem
+    /// bonuses). Args: the points and where they were earned.</summary>
+    public static event Action<int, Vector3> BonusScore;
+
+    /// <summary>Raised when the run's stage changes (including the reset to stage 0
+    /// at run start). Args: stage index, gem colours in play, the score the stage
+    /// began at, and the score the next stage begins at.</summary>
+    public static event Action<int, int, int, int> StageChanged;
+
+    /// <summary>Raised when a stage-up brings a new gem colour into play.
+    /// Arg: the colour index now available (see GemPalette).</summary>
+    public static event Action<int> ColorUnlocked;
 
     /// <summary>Raised when a swap is refused because it makes no match.
     /// Arg: the midpoint of the two gems, for a "denied" effect there.</summary>
@@ -67,8 +91,20 @@ public static class GameEvents
 
     public static void RaiseTileMerged(Item cleared, Cell cell) => TileMerged?.Invoke(cleared, cell);
 
-    public static void RaiseMatchResolved(int combo, int gemCount, int points, Vector3 centre)
-        => MatchResolved?.Invoke(combo, gemCount, points, centre);
+    public static void RaiseMatchResolved(int combo, int gemCount, int points, Vector3 centre, Color colour)
+        => MatchResolved?.Invoke(combo, gemCount, points, centre, colour);
+
+    public static void RaiseSpecialCreated(Item gem, Cell cell) => SpecialCreated?.Invoke(gem, cell);
+
+    public static void RaiseSpecialFired(SpecialKind kind, Vector3 origin, Color colour, List<Cell> cells)
+        => SpecialFired?.Invoke(kind, origin, colour, cells);
+
+    public static void RaiseBonusScore(int points, Vector3 at) => BonusScore?.Invoke(points, at);
+
+    public static void RaiseStageChanged(int stage, int colours, int stageStart, int nextStart)
+        => StageChanged?.Invoke(stage, colours, stageStart, nextStart);
+
+    public static void RaiseColorUnlocked(int colourIndex) => ColorUnlocked?.Invoke(colourIndex);
 
     public static void RaiseSwapDenied(Vector3 centre) => SwapDenied?.Invoke(centre);
 
@@ -96,6 +132,11 @@ public static class GameEvents
         ScoreChanged = null;
         TileMerged = null;
         MatchResolved = null;
+        SpecialCreated = null;
+        SpecialFired = null;
+        BonusScore = null;
+        StageChanged = null;
+        ColorUnlocked = null;
         SwapDenied = null;
         StoneDamaged = null;
         StoneBroken = null;

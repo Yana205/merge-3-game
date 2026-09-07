@@ -2630,6 +2630,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JuiceDirector
   enableJuice: 1
+  popupFont: {fileID: 11400000, guid: 3cb7c568937e246a7bff84765026acba, type: 2}
+  popupOutline: 0.22
+  popupOutlineColor: {r: 0.05, g: 0.02, b: 0.12, a: 1}
   cameraShake: 1
   shakeDuration: 0.12
   shakeMagnitude: 0.06
@@ -2646,6 +2649,8 @@ MonoBehaviour:
   scoreFontSize: 4.5
   comboPopups: 1
   popupFontSize: 7
+  screenFlash: 1
+  flashAlpha: 0.35
 --- !u!114 &1156920197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3190,6 +3195,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1736714829}
   - component: {fileID: 1736714828}
+  - component: {fileID: 1736714830}
   m_Layer: 0
   m_Name: ' MergeManager'
   m_TagString: Untagged
@@ -3212,6 +3218,8 @@ MonoBehaviour:
   gridManager: {fileID: 1156920193}
   colorCount: 5
   minMatch: 3
+  crossBonus: 60
+  prismBonus: 200
   popTime: 0.24
   popSwell: 1.32
   fallGravity: 42
@@ -3237,6 +3245,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1736714830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736714827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c6519e7322e7412eaf215fc95f2fe2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StageDirector
+  mergeManager: {fileID: 1736714828}
+  stageStarts: 00000000dc050000a00f0000401f0000c8320000384a000090650000
+  lateStageStep: 8000
+  startingColors: 4
+  stoneChanceStart: 0.05
+  stoneChancePerStage: 0.02
+  stoneChanceMax: 0.16
+  maxStonesStart: 3
+  maxStonesCap: 6
+  toughStonesFromStage: 4
 --- !u!1 &1762317596
 GameObject:
   m_ObjectHideFlags: 0

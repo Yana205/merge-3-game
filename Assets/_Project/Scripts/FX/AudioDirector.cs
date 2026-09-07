@@ -130,6 +130,8 @@ public class AudioDirector : MonoBehaviour
         GameEvents.GemSelected += HandleGemSelected;
         GameEvents.StoneDamaged += HandleStoneDamaged;
         GameEvents.StoneBroken += HandleStoneBroken;
+        GameEvents.SpecialFired += HandleSpecialFired;
+        GameEvents.StageChanged += HandleStageChanged;
     }
 
     void OnDisable()
@@ -139,13 +141,15 @@ public class AudioDirector : MonoBehaviour
         GameEvents.GemSelected -= HandleGemSelected;
         GameEvents.StoneDamaged -= HandleStoneDamaged;
         GameEvents.StoneBroken -= HandleStoneBroken;
+        GameEvents.SpecialFired -= HandleSpecialFired;
+        GameEvents.StageChanged -= HandleStageChanged;
     }
 
     // --- Bus handlers -------------------------------------------------------
 
     // One pop per cleared GROUP, not per gem — five gems popping at once should be
     // one satisfying burst, not five copies of the same clip clipping the mixer.
-    private void HandleMatchResolved(int combo, int gemCount, int points, Vector3 centre)
+    private void HandleMatchResolved(int combo, int gemCount, int points, Vector3 centre, Color colour)
     {
         if (_sfxSource == null) return;
 
@@ -192,6 +196,43 @@ public class AudioDirector : MonoBehaviour
         if (crashClip == null || _sfxSource == null) return;
         _sfxSource.pitch = 1.05f;
         _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.8f);
+    }
+
+    // A Cross is a sharp crack; a Prism is the crash, low and wide.
+    private void HandleSpecialFired(SpecialKind kind, Vector3 origin, Color colour, System.Collections.Generic.List<Cell> cells)
+    {
+        if (crashClip == null || _sfxSource == null) return;
+        _sfxSource.pitch = kind == SpecialKind.Prism ? 0.8f : 1.25f;
+        _sfxSource.PlayOneShot(crashClip, sfxVolume * (kind == SpecialKind.Prism ? 0.9f : 0.6f));
+    }
+
+    private int _lastStage = -1;
+
+    // A stage-up climbs the whole match ladder in one go — the run's fanfare.
+    private void HandleStageChanged(int stage, int colours, int stageStart, int nextStart)
+    {
+        bool up = _lastStage >= 0 && stage > _lastStage && stageStart > 0;
+        _lastStage = stage;
+        if (!up || _sfxSource == null) return;
+        StartCoroutine(StageJingle());
+    }
+
+    private System.Collections.IEnumerator StageJingle()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (matchClip != null)
+            {
+                _sfxSource.pitch = basePitch * Mathf.Pow(pitchPerCombo, i + 1);
+                _sfxSource.PlayOneShot(matchClip, sfxVolume * 0.8f);
+            }
+            yield return new WaitForSeconds(0.09f);
+        }
+        if (crashClip != null)
+        {
+            _sfxSource.pitch = 1.1f;
+            _sfxSource.PlayOneShot(crashClip, sfxVolume * 0.7f);
+        }
     }
 
     // --- Mute ---------------------------------------------------------------
