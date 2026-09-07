@@ -56,18 +56,50 @@ public class AudioDirector : MonoBehaviour
     private AudioSource _sfxSource;
 
     /// <summary>
-    /// Muted state, shared by every instance and readable by the HUD before this
-    /// component has woken up. Static because the mute button lives in the UI
-    /// layer, which has no reference to this object — and because the setting
-    /// should survive a scene reload, which the restart flow does on every run.
+    /// Music mute state, shared by every instance and readable by any UI before
+    /// this component has woken up. Static because the toggles live in the UI
+    /// layer, which holds no reference to this object — and because the setting
+    /// must survive the scene reload the restart flow performs on every run.
+    /// Music is OFF by default: a browser tab that starts singing uninvited is
+    /// the fastest way to lose a player, so they opt in with one click.
     /// </summary>
-    public static bool Muted { get; private set; }
+    public static bool MusicMuted { get { EnsurePrefsLoaded(); return s_musicMuted; } }
 
-    private const string MuteKey = "AudioMuted";
+    /// <summary>Sound-effect mute state. Effects are ON by default — they are
+    /// the game's feedback, not its soundtrack.</summary>
+    public static bool SfxMuted { get { EnsurePrefsLoaded(); return s_sfxMuted; } }
+
+    /// <summary>Raised after either mute flag changes, so every toggle button
+    /// (HUD and title menu) can refresh its label without referencing the other.</summary>
+    public static event System.Action MuteChanged;
+
+    private const string MusicKey = "MusicMuted";
+    private const string SfxKey = "SfxMuted";
+
+    private static bool s_musicMuted = true;
+    private static bool s_sfxMuted;
+    private static bool s_prefsLoaded;
+
+    // Static state outlives a play session when Domain Reload is off in the
+    // Editor; re-reading the prefs on the next load keeps the flags honest.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        s_prefsLoaded = false;
+        MuteChanged = null;
+    }
+
+    private static void EnsurePrefsLoaded()
+    {
+        if (s_prefsLoaded) return;
+        s_musicMuted = PlayerPrefs.GetInt(MusicKey, 1) == 1;   // default: muted
+        s_sfxMuted = PlayerPrefs.GetInt(SfxKey, 0) == 1;       // default: audible
+        s_prefsLoaded = true;
+    }
 
     void Awake()
     {
-        Muted = PlayerPrefs.GetInt(MuteKey, 0) == 1;
+        EnsurePrefsLoaded();
 
         // Two sources, not one: music loops and must keep its own volume while
         // one-shots come and go. PlayOneShot on the music source would work but
@@ -164,22 +196,40 @@ public class AudioDirector : MonoBehaviour
 
     // --- Mute ---------------------------------------------------------------
 
-    public static void SetMuted(bool muted)
+    public static void SetMusicMuted(bool muted)
     {
-        Muted = muted;
-        PlayerPrefs.SetInt(MuteKey, muted ? 1 : 0);
+        EnsurePrefsLoaded();
+        s_musicMuted = muted;
+        PlayerPrefs.SetInt(MusicKey, muted ? 1 : 0);
         PlayerPrefs.Save();
+        ApplyToAll();
+    }
 
-        // Static setter, instance state: find whoever is live and tell them. There
-        // is normally exactly one, and none during a scene load, which is why this
-        // is a search rather than a stored reference.
-        foreach (AudioDirector d in FindObjectsByType<AudioDirector>(FindObjectsSortMode.None))
+    public static void SetSfxMuted(bool muted)
+    {
+        EnsurePrefsLoaded();
+        s_sfxMuted = muted;
+        PlayerPrefs.SetInt(SfxKey, muted ? 1 : 0);
+        PlayerPrefs.Save();
+        ApplyToAll();
+    }
+
+    public static void ToggleMusic() => SetMusicMuted(!MusicMuted);
+    public static void ToggleSfx() => SetSfxMuted(!SfxMuted);
+
+    // Static setter, instance state: find whoever is live and tell them. There
+    // is normally exactly one, and none during a scene load, which is why this
+    // is a search rather than a stored reference.
+    private static void ApplyToAll()
+    {
+        foreach (AudioDirector d in FindObjectsByType<AudioDirector>(FindObjectsInactive.Include))
             d.ApplyMute();
+        MuteChanged?.Invoke();
     }
 
     private void ApplyMute()
     {
-        if (_musicSource != null) _musicSource.mute = Muted;
-        if (_sfxSource != null) _sfxSource.mute = Muted;
+        if (_musicSource != null) _musicSource.mute = s_musicMuted;
+        if (_sfxSource != null) _sfxSource.mute = s_sfxMuted;
     }
 }
